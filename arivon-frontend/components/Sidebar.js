@@ -1,0 +1,216 @@
+"use client";
+
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  LayoutDashboard, Building2, Users, GraduationCap, Wallet, Megaphone,
+  FileText, BarChart3, Settings, LogOut, ChevronDown, Lock, UserPlus, Bus,
+} from "lucide-react";
+import { clearToken } from "../lib/api";
+import { getHomeRouteForRole } from "../lib/roleRouting";
+
+// Each group maps to a real responsibility area, not a database table.
+// "roles: null" means visible to everyone; otherwise only the listed
+// roles see the group/item at all. "href: null" means the feature is a
+// future sprint — shown for context (so the full org chart is visible)
+// but disabled rather than a broken link.
+const NAV_GROUPS = [
+  {
+    label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", roles: null, standalone: true,
+  },
+  {
+    label: "School", icon: Building2,
+    roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"],
+    items: [
+      { label: "School Profile", href: "/dashboard/school/profile" },
+      { label: "Academic Sessions", href: "/dashboard/school/sessions" },
+      { label: "Houses", href: "/dashboard/school/houses" },
+      { label: "Campuses", href: null },
+      { label: "Calendar", href: null },
+      { label: "Holidays", href: null },
+    ],
+  },
+  {
+    label: "People", icon: Users, roles: null,
+    items: [
+      { label: "Students", href: "/dashboard/students" },
+      { label: "Parents", href: "/dashboard/people/parents", roles: ["admissions_officer", "school_admin", "administrator", "principal", "vice_principal", "super_admin"] },
+      { label: "Teachers", href: "/dashboard/people/teachers" },
+      { label: "Staff", href: "/dashboard/people/staff", roles: ["school_admin", "administrator", "principal", "super_admin"] },
+      { label: "Leave Management", href: "/dashboard/people/leave" },
+      { label: "Departments", href: null },
+      { label: "Roles & Permissions", href: "/dashboard/people/roles", roles: ["school_admin", "administrator", "super_admin"] },
+    ],
+  },
+  {
+    label: "Academics", icon: GraduationCap,
+    roles: ["academic_coordinator", "teacher", "school_admin", "administrator", "principal", "vice_principal", "super_admin"],
+    items: [
+      { label: "Classes & Timetable", href: "/dashboard/academics" },
+      { label: "Homework", href: "/dashboard/academics/homework" },
+      { label: "Syllabus Tracking", href: "/dashboard/academics/syllabus" },
+      { label: "Attendance", href: "/dashboard/attendance", roles: ["teacher"] },
+      { label: "Attendance", href: "/dashboard/attendance/overview", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Staff Register", href: "/dashboard/attendance/staff-report", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Student Register", href: "/dashboard/attendance/student-register", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Examinations", href: "/dashboard/academics/examinations" },
+      { label: "Promotion", href: null },
+    ],
+  },
+  {
+    label: "Admissions", icon: UserPlus, href: "/dashboard/admissions", standalone: true,
+    roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
+  },
+  {
+    label: "Finance", icon: Wallet, roles: ["accountant", "school_admin", "super_admin"],
+    items: [
+      { label: "Fee Management", href: "/dashboard/finance" },
+      { label: "Scholarships", href: null },
+      { label: "Discounts", href: null },
+      { label: "Reports", href: null },
+    ],
+  },
+  {
+    label: "Communication", icon: Megaphone, roles: null,
+    items: [
+      { label: "Notices & Messaging", href: "/dashboard/communication" },
+      { label: "Parent Complaints", href: "/dashboard/communication/complaints" },
+      { label: "Events", href: null },
+    ],
+  },
+  {
+    label: "Transport", icon: Bus, href: "/dashboard/transport", standalone: true,
+    roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"],
+  },
+  {
+    label: "Documents & Certificates", icon: FileText, href: "/dashboard/documents", standalone: true, roles: null,
+  },
+  {
+    label: "Reports & Analytics", icon: BarChart3, href: "/dashboard/reports",
+    roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"], standalone: true,
+  },
+  {
+    label: "Settings", icon: Settings, href: "/dashboard/settings",
+    roles: ["school_admin", "administrator", "super_admin"], standalone: true,
+  },
+];
+
+export default function Sidebar({ user }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [openGroups, setOpenGroups] = useState({});
+
+  function handleLogout() {
+    clearToken();
+    router.push("/");
+  }
+
+  function toggleGroup(label) {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }
+
+  function visibleFor(roles) {
+    return roles === null || (user && roles.includes(user.role_name));
+  }
+
+  const visibleGroups = NAV_GROUPS.filter((g) => visibleFor(g.roles));
+
+  return (
+    <aside className="w-64 bg-navy-900 text-white flex flex-col shrink-0 h-screen">
+      <div className="px-5 py-6 flex items-center shrink-0">
+        {user?.school_logo_url ? (
+          <img
+            src={user.school_logo_url}
+            alt={user.school_name || "School logo"}
+            className="w-11 h-11 rounded-lg object-contain bg-white shrink-0"
+          />
+        ) : (
+          <div
+            className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0"
+            style={{ backgroundColor: user?.school_primary_color || "#6D5BFF" }}
+          >
+            <LayoutDashboard size={20} className="text-white" />
+          </div>
+        )}
+      </div>
+
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1">
+        {visibleGroups.map((group) => {
+          const Icon = group.icon;
+
+          if (group.standalone) {
+            const href = group.label === "Dashboard" ? getHomeRouteForRole(user?.role_name) : group.href;
+            const active = pathname === href;
+            return (
+              <button
+                key={group.label}
+                onClick={() => router.push(href)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active ? "bg-brand-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <Icon size={18} />
+                {group.label}
+              </button>
+            );
+          }
+
+          const items = group.items.filter((it) => visibleFor(it.roles ?? null));
+          if (items.length === 0) return null;
+          const isOpen = openGroups[group.label] ?? items.some((it) => it.href === pathname);
+
+          return (
+            <div key={group.label}>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-3">
+                  <Icon size={18} />
+                  {group.label}
+                </span>
+                <ChevronDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+              </button>
+              {isOpen && (
+                <div className="ml-9 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                  {items.map((item) => {
+                    const active = pathname === item.href;
+                    const disabled = !item.href;
+                    return (
+                      <button
+                        key={item.label}
+                        disabled={disabled}
+                        onClick={() => item.href && router.push(item.href)}
+                        title={disabled ? "Coming in a future sprint" : undefined}
+                        className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
+                          disabled
+                            ? "text-slate-600 cursor-not-allowed"
+                            : active
+                            ? "bg-white/10 text-white font-medium"
+                            : "text-slate-400 hover:text-white hover:bg-white/5"
+                        }`}
+                      >
+                        {item.label}
+                        {disabled && <Lock size={11} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="px-3 py-4 border-t border-white/10 shrink-0">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+        >
+          <LogOut size={18} />
+          Log out
+        </button>
+      </div>
+    </aside>
+  );
+}

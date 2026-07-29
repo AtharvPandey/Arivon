@@ -1,0 +1,34 @@
+# ======================
+# Python
+# ======================
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Uploads
+uploads/
+
+# SQLite
+*.db
+
+# ======================
+# Node
+# ======================
+node_modules/
+.next/
+out/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# IDE
+.idea/
