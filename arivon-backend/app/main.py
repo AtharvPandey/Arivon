@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Base, engine, SessionLocal
 from app import models
+from app.core.config import settings
 from app.routers import auth, schools, academic_years, classes, students, staff, attendance, staff_attendance, dashboard, fees, announcements, guardians, admissions, documents, academics, platform_auth, platform, roles, events, houses, school_registration, verification, school_management, morning_briefing, complaints, substitutions, leave, homework, syllabus, exams, communication, transport, certificates, salary, reports
 
 app = FastAPI(
@@ -18,7 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[origin.strip() for origin in settings.cors_allowed_origins.split(",")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
