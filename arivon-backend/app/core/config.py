@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440  # 24 hours
 
+    # Comma-separated list of frontend origins allowed to call this API.
+    # Defaults to local dev; for a deployed frontend (e.g. Vercel), set
+    # CORS_ALLOWED_ORIGINS=https://your-app.vercel.app in the environment.
+    cors_allowed_origins: str = "http://localhost:3000"
+
     # WhatsApp notifications (via Twilio). If whatsapp_enabled is False, or
     # credentials are missing, messages are printed to the console instead
     # of actually sent — this "dry run" mode lets you build and test the

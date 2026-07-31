@@ -12,13 +12,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
+# Render, Heroku, and Railway all hand out connection strings starting
+# with "postgres://" — a legacy scheme SQLAlchemy 2.0 refuses outright
+# ("Could not parse rfc1738 URL"). Normalize it here so DATABASE_URL can
+# be pasted directly from any of those providers without edits.
+_database_url = settings.database_url
+if _database_url.startswith("postgres://"):
+    _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+
 # check_same_thread is only needed for SQLite (not Postgres) because SQLite
 # by default only allows the thread that created the connection to use it.
 connect_args = (
-    {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    {"check_same_thread": False} if _database_url.startswith("sqlite") else {}
 )
 
-engine = create_engine(settings.database_url, connect_args=connect_args)
+engine = create_engine(_database_url, connect_args=connect_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
