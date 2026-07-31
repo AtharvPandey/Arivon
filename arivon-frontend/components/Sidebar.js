@@ -95,8 +95,30 @@ const NAV_GROUPS = [
   },
 ];
 
+const RESERVED_TOP_LEVEL_PATHS = new Set(["dashboard", "principal", "teacher", "admissions", "platform"]);
+
+/**
+ * Strips a leading /{slug} segment from a pathname before comparing it
+ * against a bare route like "/dashboard/students". Needed because it's
+ * genuinely ambiguous whether usePathname() reflects the browser's
+ * visible slug-prefixed URL or the internally-rewritten bare path after
+ * a middleware rewrite — normalizing both sides to the same bare form
+ * makes the active-link comparison correct either way, rather than
+ * relying on an assumption about Next.js internals that's hard to
+ * verify with certainty.
+ */
+function stripSlugPrefix(pathname) {
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length === 0) return pathname;
+  if (!RESERVED_TOP_LEVEL_PATHS.has(segments[0])) {
+    return "/" + segments.slice(1).join("/");
+  }
+  return pathname;
+}
+
 export default function Sidebar({ user }) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = stripSlugPrefix(rawPathname);
   const router = useRouter();
   const [openGroups, setOpenGroups] = useState({});
 
