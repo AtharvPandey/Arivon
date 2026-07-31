@@ -24,6 +24,7 @@ export const ROLE_HOME_ROUTES = {
   transport_manager: "/dashboard",
 };
 
-export function getHomeRouteForRole(roleName) {
-  return ROLE_HOME_ROUTES[roleName] || "/dashboard";
+export function getHomeRouteForRole(roleName, schoolSlug) {
+  const route = ROLE_HOME_ROUTES[roleName] || "/dashboard";
+  return schoolSlug ? `/${schoolSlug}${route}` : route;
 }
