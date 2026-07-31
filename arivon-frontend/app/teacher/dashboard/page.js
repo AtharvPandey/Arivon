@@ -94,7 +94,7 @@ export default function TeacherDashboard() {
           <p className="text-3xl font-bold text-slate-900">{todaysSchedule.length}</p>
         </div>
         <button
-          onClick={() => router.push("/dashboard/attendance")}
+          onClick={() => router.push("/admin/attendance")}
           className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl p-5 flex flex-col items-start justify-center gap-1 text-left transition-colors"
         >
           <ClipboardList size={18} />

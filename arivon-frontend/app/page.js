@@ -62,7 +62,7 @@ export default function LoginPage() {
       // The one thing that makes the slug persist through every single
       // page in the app afterward, not just this login: a cookie the
       // middleware reads on every navigation. Without this, clicking
-      // any internal link (which still calls router.push("/dashboard/x")
+      // any internal link (which still calls router.push("/admin/x")
       // with a bare path — there's no practical way to touch every one
       // of those calls) would silently drop the /{slug} prefix.
       if (slug) {

@@ -3,19 +3,19 @@ import { NextResponse } from "next/server";
 /**
  * Per-school URL routing.
  *
- * Every school gets its own URL: /{slug}/login, /{slug}/dashboard,
+ * Every school gets its own URL: /{slug}/login, /{slug}/admin,
  * /{slug}/principal/dashboard, and so on. Rather than physically moving
  * every existing page under a [schoolSlug] folder (which would touch
  * dozens of files and every router.push() call across the whole app),
  * this middleware does two things:
  *
- *   1. REWRITE: /{slug}/dashboard/x -> internally serves /dashboard/x,
+ *   1. REWRITE: /{slug}/admin/x -> internally serves /admin/x,
  *      unchanged. The browser's address bar keeps showing the slug;
  *      Next.js just serves the existing page underneath it.
  *
  *   2. REDIRECT BACK: this is the piece that makes the slug persist
  *      through EVERY in-app click, not just the first page load.
- *      Every page throughout the app still calls router.push("/dashboard/x")
+ *      Every page throughout the app still calls router.push("/admin/x")
  *      with a bare path — there's no practical way around touching
  *      dozens of files for that. Instead, this middleware runs on
  *      every single navigation (even client-side ones — they still
@@ -33,7 +33,7 @@ import { NextResponse } from "next/server";
  */
 
 const RESERVED_TOP_LEVEL_PATHS = new Set([
-  "dashboard",
+  "admin",
   "principal",
   "teacher",
   "admissions",
@@ -76,7 +76,7 @@ export function middleware(request) {
   // the rest of the path to the existing route structure.
   //   /{slug}            -> /            (login page)
   //   /{slug}/login       -> /            (login page)
-  //   /{slug}/dashboard/x -> /dashboard/x
+  //   /{slug}/admin/x -> /admin/x
   const rest = segments.slice(1);
   const isLoginAlias = rest.length === 0 || (rest.length === 1 && rest[0] === "login");
   const rewrittenPath = isLoginAlias ? "/" : `/${rest.join("/")}`;

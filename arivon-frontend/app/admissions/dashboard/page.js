@@ -77,7 +77,7 @@ export default function AdmissionsDashboard() {
           <p className="text-sm text-slate-600">Your admissions pipeline, at a glance.</p>
         </div>
         <button
-          onClick={() => router.push("/dashboard/admissions")}
+          onClick={() => router.push("/admin/admissions")}
           className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg px-4 py-2.5 flex items-center gap-1.5"
         >
           <UserPlus size={16} />
@@ -131,7 +131,7 @@ export default function AdmissionsDashboard() {
             {recentApplications.map((a) => (
               <button
                 key={a.id}
-                onClick={() => router.push(`/dashboard/admissions/${a.id}`)}
+                onClick={() => router.push(`/admin/admissions/${a.id}`)}
                 className="w-full flex items-center justify-between border-b border-slate-100 last:border-0 pb-2 last:pb-0 text-left hover:bg-slate-50 rounded px-1"
               >
                 <div>

@@ -8,7 +8,7 @@ import { apiRequest, isLoggedIn } from "../lib/api";
 
 /**
  * Shared shell (Sidebar + Topbar + login check) used by every top-level
- * route group: /dashboard/*, /teacher/*, /admissions/*, and any future
+ * route group: /admin/*, /teacher/*, /admissions/*, and any future
  * role-specific route tree. Pulled out once so adding a new role's
  * route group never means re-copying this auth/layout logic again.
  */
