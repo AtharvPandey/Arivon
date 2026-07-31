@@ -1,30 +1,35 @@
 import { NextResponse } from "next/server";
 
 /**
- * Per-school URL routing — Phase 1.
+ * Per-school URL routing.
  *
  * Every school gets its own URL: /{slug}/login, /{slug}/dashboard,
  * /{slug}/principal/dashboard, and so on. Rather than physically moving
  * every existing page under a [schoolSlug] folder (which would touch
  * dozens of files and every router.push() call across the whole app),
- * this middleware REWRITES the incoming request: the browser's address
- * bar keeps showing /{slug}/dashboard, but Next.js internally serves
- * the exact same /dashboard page that already exists, completely
- * unchanged. Same trick browsers can't tell the difference on — it's
- * how Vercel's own rewrites and most multi-tenant Next.js apps handle
- * this without a full route-tree migration.
+ * this middleware does two things:
+ *
+ *   1. REWRITE: /{slug}/dashboard/x -> internally serves /dashboard/x,
+ *      unchanged. The browser's address bar keeps showing the slug;
+ *      Next.js just serves the existing page underneath it.
+ *
+ *   2. REDIRECT BACK: this is the piece that makes the slug persist
+ *      through EVERY in-app click, not just the first page load.
+ *      Every page throughout the app still calls router.push("/dashboard/x")
+ *      with a bare path — there's no practical way around touching
+ *      dozens of files for that. Instead, this middleware runs on
+ *      every single navigation (even client-side ones — they still
+ *      hit the server), and if it sees a bare reserved-path request
+ *      arrive WITHOUT a slug, but the browser has a school_slug cookie
+ *      (set once at login), it redirects to the slug-prefixed version.
+ *      A redirect (unlike a rewrite) DOES update the visible address
+ *      bar, so this one cookie-driven check keeps every route in the
+ *      whole app correctly prefixed, without editing every page.
  *
  * Reserved top-level paths are never treated as a school slug — these
- * are the app's own real routes, not tenant identifiers.
- *
- * PHASE 2 (not yet done): every internal router.push() call currently
- * uses bare paths like "/dashboard/students". Those still work
- * correctly (this middleware serves them fine), but clicking one will
- * drop the /{slug} prefix from the address bar for that navigation,
- * since the code isn't asking for the slug-prefixed version. Making
- * the slug persist through every single in-app link is a larger,
- * separate pass — worth doing once this foundation is confirmed
- * working end-to-end.
+ * are the app's own real routes, not tenant identifiers. "platform" is
+ * deliberately excluded from the redirect-back logic too, since
+ * Platform Admin isn't tied to any single school.
  */
 
 const RESERVED_TOP_LEVEL_PATHS = new Set([
@@ -38,19 +43,32 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   "favicon.ico",
 ]);
 
+// Platform routes are Arivon-staff-only and never belong to a school —
+// redirecting these back to a slug would be actively wrong.
+const NEVER_SLUG_PREFIXED = new Set(["platform", "api", "_next", "favicon.ico"]);
+
 export function middleware(request) {
   const { pathname } = request.nextUrl;
   const segments = pathname.split("/").filter(Boolean);
 
-  // Root path, or nothing to rewrite — let it through untouched.
   if (segments.length === 0) {
     return NextResponse.next();
   }
 
   const firstSegment = segments[0];
 
-  // A real app route (not a school slug) — pass through untouched.
   if (RESERVED_TOP_LEVEL_PATHS.has(firstSegment)) {
+    // A bare reserved-path request. If there's an active school session
+    // (cookie set at login) and this route is one that SHOULD be
+    // slug-scoped, send the browser to the slug-prefixed version instead.
+    if (!NEVER_SLUG_PREFIXED.has(firstSegment)) {
+      const schoolSlug = request.cookies.get("school_slug")?.value;
+      if (schoolSlug) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/${schoolSlug}${pathname}`;
+        return NextResponse.redirect(url);
+      }
+    }
     return NextResponse.next();
   }
 

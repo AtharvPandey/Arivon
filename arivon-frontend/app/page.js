@@ -59,6 +59,15 @@ export default function LoginPage() {
       });
       saveToken(data.access_token);
       const me = await apiRequest("/auth/me");
+      // The one thing that makes the slug persist through every single
+      // page in the app afterward, not just this login: a cookie the
+      // middleware reads on every navigation. Without this, clicking
+      // any internal link (which still calls router.push("/dashboard/x")
+      // with a bare path — there's no practical way to touch every one
+      // of those calls) would silently drop the /{slug} prefix.
+      if (slug) {
+        document.cookie = `school_slug=${slug}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      }
       router.push(getHomeRouteForRole(me.role_name, slug));
     } catch (err) {
       // The backend prefixes this one specific error so the frontend can
