@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Pencil, Camera, X, Check, GraduationCap, CalendarClock } from "lucide-react";
-import { apiRequest, apiUpload, isLoggedIn } from "../../../../../lib/api";
+import { apiRequest, apiUpload, isLoggedIn, resolveAssetUrl } from "../../../../../lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -165,7 +165,7 @@ export default function StaffDetailPage() {
             <div className="relative w-20 h-20 mx-auto mb-3">
               <div className="w-20 h-20 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-2xl font-bold overflow-hidden">
                 {profile?.photo_url ? (
-                  <img src={`${API_URL}${profile.photo_url}`} alt={staffMember.full_name} className="w-full h-full object-cover" />
+                  <img src={resolveAssetUrl(profile.photo_url)} alt={staffMember.full_name} className="w-full h-full object-cover" />
                 ) : (
                   staffMember.full_name.charAt(0)
                 )}

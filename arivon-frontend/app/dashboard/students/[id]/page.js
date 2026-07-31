@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Users, FileOutput, RotateCcw, Pencil, Camera, X, Check } from "lucide-react";
-import { apiRequest, apiUpload, isLoggedIn, downloadAuthenticatedFile } from "../../../../lib/api";
+import { apiRequest, apiUpload, isLoggedIn, downloadAuthenticatedFile, resolveAssetUrl } from "../../../../lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -220,7 +220,7 @@ export default function StudentDetailPage() {
               <div className="relative w-20 h-20 mx-auto mb-3">
                 <div className="w-20 h-20 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-2xl font-bold overflow-hidden">
                   {student.photo_url ? (
-                    <img src={`${API_URL}${student.photo_url}`} alt={student.full_name} className="w-full h-full object-cover" />
+                    <img src={resolveAssetUrl(student.photo_url)} alt={student.full_name} className="w-full h-full object-cover" />
                   ) : (
                     student.full_name.charAt(0)
                   )}

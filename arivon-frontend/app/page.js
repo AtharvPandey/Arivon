@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Building2 } from "lucide-react";
-import { apiRequest, saveToken } from "../lib/api";
+import { apiRequest, saveToken, resolveAssetUrl } from "../lib/api";
 import { getHomeRouteForRole } from "../lib/roleRouting";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -84,7 +84,7 @@ export default function LoginPage() {
             <>
               <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mx-auto mb-3 overflow-hidden">
                 {school.logo_url ? (
-                  <img src={`${API_URL}${school.logo_url}`} alt={school.name} className="w-full h-full object-cover" />
+                  <img src={resolveAssetUrl(school.logo_url)} alt={school.name} className="w-full h-full object-cover" />
                 ) : (
                   <Building2 size={26} className="text-indigo-300" />
                 )}
