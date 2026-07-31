@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.core.security import hash_password
+from app.core.slug_utils import generate_unique_school_slug
 from app.repositories.school_repository import SchoolRepository
 from app.repositories.department_repository import DepartmentRepository
 from app.repositories.organization_settings_repository import OrganizationSettingsRepository
@@ -73,6 +74,7 @@ class SchoolRegistrationService:
         school = models.School(
             name=payload.identity.name,
             short_name=payload.identity.short_name,
+            slug=generate_unique_school_slug(self.db, payload.identity.name, payload.identity.short_name),
             school_type=payload.identity.school_type.value,
             school_category=payload.identity.school_category.value,
             year_established=payload.identity.year_established,

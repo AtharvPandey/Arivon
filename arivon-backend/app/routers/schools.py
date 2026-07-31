@@ -87,3 +87,17 @@ async def upload_school_logo(school_id: int, file: UploadFile = File(...), db: S
     db.commit()
     db.refresh(school)
     return school
+
+
+@router.get("/by-slug/{slug}", response_model=schemas.SchoolPublicOut)
+def get_school_by_slug(slug: str, db: Session = Depends(get_db)):
+    """
+    Deliberately NO auth on this one — it powers the branded login page
+    at /{slug}/login, which a visitor hits before they've logged in at
+    all. Returns only what a login screen needs to show (name, logo,
+    board type), nothing a stranger shouldn't see about the school.
+    """
+    school = db.query(models.School).filter(models.School.slug == slug).first()
+    if not school:
+        raise HTTPException(status_code=404, detail="No school found with this URL. Check the link and try again.")
+    return school
