@@ -116,7 +116,7 @@ export default function StepReview({ draftId, onBack }) {
         </div>
 
         <button
-          onClick={() => router.push("/platform/dashboard")}
+          onClick={() => router.push("/platform/admin")}
           className="bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg px-5 py-2.5"
         >
           Back to Platform Dashboard

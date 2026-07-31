@@ -110,7 +110,7 @@ export default function MorningBriefing({ schoolId }) {
           headline={`${ta.present + ta.late}/${ta.total_teachers} in`}
           sublabel={needsSubCount > 0 ? `${needsSubCount} need a substitute` : ta.absent > 0 ? `${ta.absent} absent, all covered` : "Everyone accounted for"}
           calm={needsSubCount === 0}
-          href="/dashboard/attendance/overview?tab=staff"
+          href="/admin/attendance/overview?tab=staff"
         />
 
         {/* Attendance Submission */}
@@ -119,7 +119,7 @@ export default function MorningBriefing({ schoolId }) {
           headline={`${as_.submitted}/${as_.total_sections} sections`}
           sublabel={as_.not_submitted > 0 ? `${as_.not_submitted} haven't submitted yet` : "All sections submitted"}
           calm={as_.not_submitted === 0}
-          href="/dashboard/attendance/overview?tab=sections"
+          href="/admin/attendance/overview?tab=sections"
         />
 
         {/* Parent Complaints */}
@@ -128,7 +128,7 @@ export default function MorningBriefing({ schoolId }) {
           headline={briefing.complaints.open_count}
           sublabel={briefing.complaints.open_count > 0 ? "Awaiting a response" : "Nothing outstanding"}
           calm={briefing.complaints.open_count === 0}
-          href="/dashboard/communication/complaints"
+          href="/admin/communication/complaints"
         />
 
         {/* Fee Collection (yesterday) */}
@@ -137,7 +137,7 @@ export default function MorningBriefing({ schoolId }) {
           headline={`₹${briefing.fee_collection.yesterday_total.toLocaleString("en-IN")}`}
           sublabel={`${briefing.fee_collection.yesterday_payment_count} payment(s)`}
           calm
-          href="/dashboard/finance"
+          href="/admin/finance"
         />
 
         {/* Admission Inquiries */}
@@ -146,7 +146,7 @@ export default function MorningBriefing({ schoolId }) {
           headline={briefing.admissions.pending_count}
           sublabel={briefing.admissions.pending_count > 0 ? "Awaiting review" : "Nothing pending"}
           calm={briefing.admissions.pending_count === 0}
-          href="/dashboard/admissions"
+          href="/admin/admissions"
         />
       </div>
     </div>

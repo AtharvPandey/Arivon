@@ -45,7 +45,7 @@ export default function StaffDirectory({ roleFilter, title, subtitle }) {
         <p className="text-sm text-slate-600">Loading...</p>
       ) : staff.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
-          <p className="text-sm text-slate-600">No one here yet — added via Register in the API docs for now.</p>
+          <p className="text-sm text-slate-600">No one here yet — School Admin can add staff under People &rarr; Roles &amp; Permissions.</p>
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -65,7 +65,7 @@ export default function StaffDirectory({ roleFilter, title, subtitle }) {
               {staff.map((s) => (
                 <tr
                   key={s.id}
-                  onClick={() => router.push(`/dashboard/people/staff/${s.id}`)}
+                  onClick={() => router.push(`/admin/people/staff/${s.id}`)}
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">

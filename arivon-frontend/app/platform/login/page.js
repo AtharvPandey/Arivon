@@ -23,7 +23,7 @@ export default function PlatformLoginPage() {
         formEncoded: true,
       });
       savePlatformToken(data.access_token);
-      router.push("/platform/dashboard");
+      router.push("/platform/admin");
     } catch (err) {
       setError(err.message);
     } finally {

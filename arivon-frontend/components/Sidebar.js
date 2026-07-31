@@ -16,15 +16,15 @@ import { getHomeRouteForRole } from "../lib/roleRouting";
 // but disabled rather than a broken link.
 const NAV_GROUPS = [
   {
-    label: "Dashboard", icon: LayoutDashboard, href: "/dashboard", roles: null, standalone: true,
+    label: "Dashboard", icon: LayoutDashboard, href: "/admin", roles: null, standalone: true,
   },
   {
     label: "School", icon: Building2,
     roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"],
     items: [
-      { label: "School Profile", href: "/dashboard/school/profile" },
-      { label: "Academic Sessions", href: "/dashboard/school/sessions" },
-      { label: "Houses", href: "/dashboard/school/houses" },
+      { label: "School Profile", href: "/admin/school/profile" },
+      { label: "Academic Sessions", href: "/admin/school/sessions" },
+      { label: "Houses", href: "/admin/school/houses" },
       { label: "Campuses", href: null },
       { label: "Calendar", href: null },
       { label: "Holidays", href: null },
@@ -33,38 +33,38 @@ const NAV_GROUPS = [
   {
     label: "People", icon: Users, roles: null,
     items: [
-      { label: "Students", href: "/dashboard/students" },
-      { label: "Parents", href: "/dashboard/people/parents", roles: ["admissions_officer", "school_admin", "administrator", "principal", "vice_principal", "super_admin"] },
-      { label: "Teachers", href: "/dashboard/people/teachers" },
-      { label: "Staff", href: "/dashboard/people/staff", roles: ["school_admin", "administrator", "principal", "super_admin"] },
-      { label: "Leave Management", href: "/dashboard/people/leave" },
+      { label: "Students", href: "/admin/students" },
+      { label: "Parents", href: "/admin/people/parents", roles: ["admissions_officer", "school_admin", "administrator", "principal", "vice_principal", "super_admin"] },
+      { label: "Teachers", href: "/admin/people/teachers" },
+      { label: "Staff", href: "/admin/people/staff", roles: ["school_admin", "administrator", "principal", "super_admin"] },
+      { label: "Leave Management", href: "/admin/people/leave" },
       { label: "Departments", href: null },
-      { label: "Roles & Permissions", href: "/dashboard/people/roles", roles: ["school_admin", "administrator", "super_admin"] },
+      { label: "Roles & Permissions", href: "/admin/people/roles", roles: ["school_admin", "administrator", "super_admin"] },
     ],
   },
   {
     label: "Academics", icon: GraduationCap,
     roles: ["academic_coordinator", "teacher", "school_admin", "administrator", "principal", "vice_principal", "super_admin"],
     items: [
-      { label: "Classes & Timetable", href: "/dashboard/academics" },
-      { label: "Homework", href: "/dashboard/academics/homework" },
-      { label: "Syllabus Tracking", href: "/dashboard/academics/syllabus" },
-      { label: "Attendance", href: "/dashboard/attendance", roles: ["teacher"] },
-      { label: "Attendance", href: "/dashboard/attendance/overview", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
-      { label: "Staff Register", href: "/dashboard/attendance/staff-report", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
-      { label: "Student Register", href: "/dashboard/attendance/student-register", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
-      { label: "Examinations", href: "/dashboard/academics/examinations" },
+      { label: "Classes & Timetable", href: "/admin/academics" },
+      { label: "Homework", href: "/admin/academics/homework" },
+      { label: "Syllabus Tracking", href: "/admin/academics/syllabus" },
+      { label: "Attendance", href: "/admin/attendance", roles: ["teacher"] },
+      { label: "Attendance", href: "/admin/attendance/overview", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Staff Register", href: "/admin/attendance/staff-report", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Student Register", href: "/admin/attendance/student-register", roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"] },
+      { label: "Examinations", href: "/admin/academics/examinations" },
       { label: "Promotion", href: null },
     ],
   },
   {
-    label: "Admissions", icon: UserPlus, href: "/dashboard/admissions", standalone: true,
+    label: "Admissions", icon: UserPlus, href: "/admin/admissions", standalone: true,
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
     label: "Finance", icon: Wallet, roles: ["accountant", "school_admin", "super_admin"],
     items: [
-      { label: "Fee Management", href: "/dashboard/finance" },
+      { label: "Fee Management", href: "/admin/finance" },
       { label: "Scholarships", href: null },
       { label: "Discounts", href: null },
       { label: "Reports", href: null },
@@ -73,33 +73,33 @@ const NAV_GROUPS = [
   {
     label: "Communication", icon: Megaphone, roles: null,
     items: [
-      { label: "Notices & Messaging", href: "/dashboard/communication" },
-      { label: "Parent Complaints", href: "/dashboard/communication/complaints" },
+      { label: "Notices & Messaging", href: "/admin/communication" },
+      { label: "Parent Complaints", href: "/admin/communication/complaints" },
       { label: "Events", href: null },
     ],
   },
   {
-    label: "Transport", icon: Bus, href: "/dashboard/transport", standalone: true,
+    label: "Transport", icon: Bus, href: "/admin/transport", standalone: true,
     roles: ["school_admin", "principal", "vice_principal", "administrator", "super_admin"],
   },
   {
-    label: "Documents & Certificates", icon: FileText, href: "/dashboard/documents", standalone: true, roles: null,
+    label: "Documents & Certificates", icon: FileText, href: "/admin/documents", standalone: true, roles: null,
   },
   {
-    label: "Reports & Analytics", icon: BarChart3, href: "/dashboard/reports",
+    label: "Reports & Analytics", icon: BarChart3, href: "/admin/reports",
     roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"], standalone: true,
   },
   {
-    label: "Settings", icon: Settings, href: "/dashboard/settings",
+    label: "Settings", icon: Settings, href: "/admin/settings",
     roles: ["school_admin", "administrator", "super_admin"], standalone: true,
   },
 ];
 
-const RESERVED_TOP_LEVEL_PATHS = new Set(["dashboard", "principal", "teacher", "admissions", "platform"]);
+const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "platform"]);
 
 /**
  * Strips a leading /{slug} segment from a pathname before comparing it
- * against a bare route like "/dashboard/students". Needed because it's
+ * against a bare route like "/admin/students". Needed because it's
  * genuinely ambiguous whether usePathname() reflects the browser's
  * visible slug-prefixed URL or the internally-rewritten bare path after
  * a middleware rewrite — normalizing both sides to the same bare form
