@@ -6,8 +6,16 @@ means platform admin accounts are provisioned out-of-band, by someone
 with direct access to the server/database, not through anything exposed
 to the internet.
 
-Usage:
+Usage (interactive, for local dev):
     python3 scripts/create_platform_admin.py
+
+Usage (non-interactive, for hosts with no shell access like Render's
+free tier): set these three environment variables before running —
+    PLATFORM_ADMIN_NAME, PLATFORM_ADMIN_EMAIL, PLATFORM_ADMIN_PASSWORD
+The script checks env vars first and only falls back to interactive
+prompts if they're not set, so local usage is completely unchanged.
+Safe to run on every boot — it skips creating a duplicate if an admin
+with that email already exists.
 """
 
 import sys
@@ -23,9 +31,9 @@ from app.core.security import hash_password
 def main():
     Base.metadata.create_all(bind=engine)  # harmless if tables already exist via Alembic
 
-    full_name = input("Full name: ").strip()
-    email = input("Email: ").strip()
-    password = input("Password: ").strip()
+    full_name = os.environ.get("PLATFORM_ADMIN_NAME") or input("Full name: ").strip()
+    email = os.environ.get("PLATFORM_ADMIN_EMAIL") or input("Email: ").strip()
+    password = os.environ.get("PLATFORM_ADMIN_PASSWORD") or input("Password: ").strip()
 
     db = SessionLocal()
     try:

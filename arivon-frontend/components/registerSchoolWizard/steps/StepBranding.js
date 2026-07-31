@@ -1,8 +1,73 @@
 "use client";
 
 import { useState } from "react";
+import { Upload, Check, Loader2 } from "lucide-react";
 import WizardStepShell from "../WizardStepShell";
-import { platformApiRequest } from "../../../lib/platformApi";
+import { platformApiRequest, platformApiUpload } from "../../../lib/platformApi";
+import { resolveAssetUrl } from "../../../lib/api";
+
+const ASSETS = [
+  { key: "logo", label: "Official School Logo", hint: "JPG or PNG", accept: ".jpg,.jpeg,.png" },
+  { key: "banner", label: "School Banner", hint: "JPG or PNG", accept: ".jpg,.jpeg,.png" },
+  { key: "seal", label: "School Seal", hint: "PNG only — needs a transparent background", accept: ".png" },
+  { key: "letterhead", label: "Letterhead", hint: "A4, PDF or PNG", accept: ".pdf,.png" },
+];
+
+function AssetUploadCard({ draftId, asset, currentUrl, onUploaded, setError }) {
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const updated = await platformApiUpload(`/school-registration/${draftId}/branding/${asset.key}`, formData);
+      onUploaded(updated);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const isPdf = currentUrl && currentUrl.toLowerCase().endsWith(".pdf");
+
+  return (
+    <div className="border border-slate-200 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm font-medium text-slate-800">{asset.label}</p>
+        {currentUrl && (
+          <span className="text-xs font-medium text-brand-700 flex items-center gap-1">
+            <Check size={12} /> Uploaded
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-slate-400 mb-3">{asset.hint}</p>
+
+      {currentUrl && !isPdf && (
+        <div className="mb-3 w-full h-20 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+          <img src={resolveAssetUrl(currentUrl)} alt={asset.label} className="max-h-full max-w-full object-contain" />
+        </div>
+      )}
+      {currentUrl && isPdf && (
+        <div className="mb-3 w-full h-12 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
+          <p className="text-xs text-slate-500">PDF uploaded — preview not shown inline</p>
+        </div>
+      )}
+
+      <label className={`flex items-center justify-center gap-2 text-xs font-medium rounded-lg px-3 py-2 border cursor-pointer transition-colors ${
+        uploading ? "border-slate-200 text-slate-400" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+      }`}>
+        {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+        {uploading ? "Uploading..." : currentUrl ? "Replace file" : "Upload file"}
+        <input type="file" accept={asset.accept} onChange={handleFileChange} className="hidden" disabled={uploading} />
+      </label>
+    </div>
+  );
+}
 
 export default function StepBranding({ draftId, formData, updateFormData, onBack, onNext, onSkip }) {
   const branding = formData.branding;
@@ -13,13 +78,28 @@ export default function StepBranding({ draftId, formData, updateFormData, onBack
     updateFormData("branding", { ...branding, [field]: value });
   }
 
+  function handleAssetUploaded(updatedSchool) {
+    // The upload endpoint returns the full updated draft — pull just
+    // the four asset URLs back into local form state so the preview
+    // and "already uploaded" badge update immediately.
+    updateFormData("branding", {
+      ...branding,
+      logo_url: updatedSchool.logo_url,
+      banner_url: updatedSchool.banner_url,
+      seal_url: updatedSchool.seal_url,
+      letterhead_url: updatedSchool.letterhead_url,
+    });
+  }
+
   async function handleNext() {
     setError("");
     setSaving(true);
     try {
+      // Colors still save the normal way — only the four file assets
+      // moved to direct upload.
       await platformApiRequest(`/school-registration/${draftId}/branding`, {
         method: "PATCH",
-        body: branding,
+        body: { primary_color: branding.primary_color, secondary_color: branding.secondary_color },
       });
     } catch (err) {
       setError(err.message);
@@ -33,7 +113,7 @@ export default function StepBranding({ draftId, formData, updateFormData, onBack
   return (
     <WizardStepShell
       title="Branding"
-      description="Visual identity used across ID cards, report cards, and the login screen — every field here is optional and defaults gracefully."
+      description="Visual identity used across ID cards, report cards, certificates, and the login screen — every asset here is optional and defaults gracefully."
       onBack={onBack}
       onNext={handleNext}
       saving={saving}
@@ -41,104 +121,51 @@ export default function StepBranding({ draftId, formData, updateFormData, onBack
       skippable
       onSkip={onSkip}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Logo URL</label>
-            <input
-              value={branding.logo_url || ""}
-              onChange={(e) => set("logo_url", e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Banner URL</label>
-            <input
-              value={branding.banner_url || ""}
-              onChange={(e) => set("banner_url", e.target.value)}
-              placeholder="https://..."
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Primary Color</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={branding.primary_color || "#6D5BFF"}
-                  onChange={(e) => set("primary_color", e.target.value)}
-                  className="w-10 h-9 rounded border border-slate-200"
-                />
-                <input
-                  value={branding.primary_color || ""}
-                  onChange={(e) => set("primary_color", e.target.value)}
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Secondary Color</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={branding.secondary_color || "#F59E0B"}
-                  onChange={(e) => set("secondary_color", e.target.value)}
-                  className="w-10 h-9 rounded border border-slate-200"
-                />
-                <input
-                  value={branding.secondary_color || ""}
-                  onChange={(e) => set("secondary_color", e.target.value)}
-                  className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Live preview */}
-        <div>
-          <p className="text-xs font-medium text-slate-500 mb-2">Preview</p>
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <div
-              className="h-20 flex items-center px-4"
-              style={{ backgroundColor: branding.primary_color || "#6D5BFF" }}
-            >
-              {branding.logo_url ? (
-                <img src={branding.logo_url} alt="Logo preview" className="h-10 w-10 rounded bg-white object-contain p-1" />
-              ) : (
-                <div className="h-10 w-10 rounded bg-white/20 flex items-center justify-center text-white text-xs font-bold">
-                  LOGO
-                </div>
-              )}
-              <span className="ml-3 text-white font-display font-semibold">
-                {formData.identity.name || "Your School Name"}
-              </span>
-            </div>
-            <div className="p-4 bg-slate-50">
-              <p className="text-xs text-slate-500">This is how your sidebar/login accent will look.</p>
-            </div>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        {ASSETS.map((asset) => (
+          <AssetUploadCard
+            key={asset.key}
+            draftId={draftId}
+            asset={asset}
+            currentUrl={branding[`${asset.key}_url`]}
+            onUploaded={handleAssetUploaded}
+            setError={setError}
+          />
+        ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-4 pt-2">
+      <div className="grid grid-cols-2 gap-3 max-w-md">
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Letterhead URL</label>
-          <input
-            value={branding.letterhead_url || ""}
-            onChange={(e) => set("letterhead_url", e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
+          <label className="block text-xs font-medium text-slate-600 mb-1">Primary Color</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={branding.primary_color || "#6D5BFF"}
+              onChange={(e) => set("primary_color", e.target.value)}
+              className="w-10 h-9 rounded border border-slate-200"
+            />
+            <input
+              value={branding.primary_color || ""}
+              onChange={(e) => set("primary_color", e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">School Seal URL</label>
-          <input
-            value={branding.seal_url || ""}
-            onChange={(e) => set("seal_url", e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
+          <label className="block text-xs font-medium text-slate-600 mb-1">Secondary Color</label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={branding.secondary_color || "#F59E0B"}
+              onChange={(e) => set("secondary_color", e.target.value)}
+              className="w-10 h-9 rounded border border-slate-200"
+            />
+            <input
+              value={branding.secondary_color || ""}
+              onChange={(e) => set("secondary_color", e.target.value)}
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
       </div>
     </WizardStepShell>

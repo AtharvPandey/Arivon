@@ -37,6 +37,7 @@ class SchoolOut(BaseModel):
     primary_color: str | None = None
 
     short_name: str | None = None
+    slug: str | None = None
     school_type: str | None = None
     school_category: str | None = None
     year_established: int | None = None
@@ -2803,3 +2804,22 @@ class ClassDetailOut(BaseModel):
     boys: int
     girls: int
     sections: list[SectionDetailOut]
+
+
+# =========================================================================
+# Public school lookup by slug — powers the branded /{slug}/login page.
+# Deliberately minimal: this endpoint has NO authentication, so it must
+# never expose anything beyond what a logged-out visitor should see on
+# a login screen (name, logo, board type for a subtitle). No contact
+# info, no financials, no internal IDs beyond what routing needs.
+# =========================================================================
+
+class SchoolPublicOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    short_name: str | None
+    logo_url: str | None
+    board_type: str
+    city: str | None
+    state: str | None

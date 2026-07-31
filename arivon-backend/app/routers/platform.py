@@ -13,6 +13,7 @@ from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_platform_admin
 from app.core.security import hash_password
+from app.core.slug_utils import generate_unique_school_slug
 
 router = APIRouter(
     prefix="/platform",
@@ -48,6 +49,7 @@ def register_school(
 
     school = models.School(
         name=payload.name,
+        slug=generate_unique_school_slug(db, payload.name),
         board_type=payload.board_type,
         city=payload.city,
         state=payload.state,

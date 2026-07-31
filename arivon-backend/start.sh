@@ -9,5 +9,16 @@ set -e
 echo "Running database migrations..."
 alembic upgrade head
 
+# One-time bootstrap: Render's free tier has no Shell access to run this
+# manually, so it can run here instead. Guarded by SEED_PLATFORM_ADMIN so
+# it doesn't fire on every normal boot — set it to "true" along with
+# PLATFORM_ADMIN_NAME/EMAIL/PASSWORD for one deploy, then remove it
+# (or just leave it: the script is idempotent and skips creating a
+# duplicate if that email already exists).
+if [ "$SEED_PLATFORM_ADMIN" = "true" ]; then
+  echo "Seeding platform admin..."
+  python scripts/create_platform_admin.py
+fi
+
 echo "Starting server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"

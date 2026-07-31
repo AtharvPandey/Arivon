@@ -106,3 +106,19 @@ export async function downloadAuthenticatedFile(path, filename) {
   a.click();
   window.URL.revokeObjectURL(url);
 }
+
+/**
+ * Resolves an asset path (logo, photo, banner, etc.) to a full URL.
+ * Uploaded files come back as relative paths like "/uploads/photos/x.png"
+ * and need the backend origin prepended. But some schools have external
+ * URLs stored (e.g. from before file uploads existed, or a school that
+ * used a third-party image host) — those are already complete and
+ * prepending the backend URL in front of them produces a broken,
+ * malformed link. This checks which case it is before deciding.
+ */
+export function resolveAssetUrl(path) {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  return `${API_URL}${path}`;
+}

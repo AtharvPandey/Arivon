@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Shield, Users, Plus, X, UserCircle2, Search } from "lucide-react";
-import { apiRequest, isLoggedIn } from "../../../../../lib/api";
+import { apiRequest, isLoggedIn, resolveAssetUrl } from "../../../../../lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const PRESET_TITLES = ["House Captain", "Vice Captain", "Sports Captain", "House Coordinator"];
@@ -169,7 +169,7 @@ export default function HouseDetailPage() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold overflow-hidden shrink-0" style={{ backgroundColor: `${color}22`, color }}>
                 {pos.holder_photo_url ? (
-                  <img src={`${API_URL}${pos.holder_photo_url}`} alt={pos.holder_name} className="w-full h-full object-cover" />
+                  <img src={resolveAssetUrl(pos.holder_photo_url)} alt={pos.holder_name} className="w-full h-full object-cover" />
                 ) : (
                   pos.holder_name ? pos.holder_name.charAt(0) : "?"
                 )}

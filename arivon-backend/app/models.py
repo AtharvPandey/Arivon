@@ -51,6 +51,10 @@ class School(Base):
 
     # ---------- 1. School Identity (additions) ----------
     short_name = Column(String, nullable=True)
+    # URL-safe, unique per school — powers /{slug}/login and every
+    # authenticated page under that school. Generated once at creation,
+    # never changed (see app/core/slug_utils.py).
+    slug = Column(String, unique=True, index=True, nullable=True)
     school_type = Column(String, nullable=True)  # see enums.SchoolType
     school_category = Column(String, nullable=True)  # see enums.SchoolCategory
     year_established = Column(Integer, nullable=True)

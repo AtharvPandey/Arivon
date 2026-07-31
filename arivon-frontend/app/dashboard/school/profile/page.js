@@ -6,7 +6,7 @@ import {
   Building2, Camera, Pencil, Check, X, FileBadge2, MapPin, Clock, Users2,
   Globe, Mail, Phone, Calendar, ShieldCheck, Landmark,
 } from "lucide-react";
-import { apiRequest, apiUpload, isLoggedIn } from "../../../../lib/api";
+import { apiRequest, apiUpload, isLoggedIn, resolveAssetUrl } from "../../../../lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const EDIT_ROLES = ["school_admin", "administrator", "super_admin"];
@@ -182,7 +182,7 @@ export default function SchoolProfilePage() {
           <div className="relative w-20 h-20 shrink-0">
             <div className="w-20 h-20 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden">
               {school.logo_url ? (
-                <img src={`${API_URL}${school.logo_url}`} alt={school.name} className="w-full h-full object-cover" />
+                <img src={resolveAssetUrl(school.logo_url)} alt={school.name} className="w-full h-full object-cover" />
               ) : (
                 <Building2 size={28} className="text-indigo-300" />
               )}
