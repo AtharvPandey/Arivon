@@ -44,7 +44,7 @@ export default function SchoolDetailPage() {
       const [detailData, timelineData, complianceData] = await Promise.all([
         platformApiRequest(`/platform/school-management/schools/${schoolId}/detail`),
         platformApiRequest(`/platform/school-management/schools/${schoolId}/timeline`),
-        platformApiRequest(`/platform/compliance/admin?school_id=${schoolId}`),
+        platformApiRequest(`/platform/compliance/dashboard?school_id=${schoolId}`),
       ]);
       setDetail(detailData);
       setTimeline(timelineData);

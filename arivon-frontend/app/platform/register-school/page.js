@@ -197,7 +197,7 @@ function RegisterSchoolWizardInner() {
       <header className="bg-navy-900 px-6 py-4 flex items-center justify-between">
         <span className="font-display font-bold text-white">Arivon Platform — Register School</span>
         <button
-          onClick={() => router.push("/platform/admin")}
+          onClick={() => router.push("/platform/dashboard")}
           className="text-sm text-slate-300 hover:text-white"
         >
           Exit

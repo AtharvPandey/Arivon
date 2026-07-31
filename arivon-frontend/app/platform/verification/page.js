@@ -42,7 +42,7 @@ export default function VerificationQueuePage() {
         <div className="flex items-center gap-6">
           <span className="font-display font-bold text-white">Arivon Platform</span>
           <nav className="flex items-center gap-4">
-            <button onClick={() => router.push("/platform/admin")} className="text-sm text-slate-300 hover:text-white">Overview</button>
+            <button onClick={() => router.push("/platform/dashboard")} className="text-sm text-slate-300 hover:text-white">Overview</button>
             <button onClick={() => router.push("/platform/schools")} className="text-sm text-slate-300 hover:text-white">Schools</button>
             <button className="text-sm text-white font-medium">Verification</button>
             <button onClick={() => router.push("/platform/compliance")} className="text-sm text-slate-300 hover:text-white">Compliance</button>
