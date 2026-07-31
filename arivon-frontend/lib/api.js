@@ -50,6 +50,11 @@ export function saveToken(token) {
 
 export function clearToken() {
   sessionStorage.removeItem("arivon_token");
+  // Clear the school-scoping cookie too — otherwise the middleware
+  // would keep redirecting this browser back into the PREVIOUS
+  // school's slug even after logging out, since that cookie persists
+  // independently of the session token.
+  document.cookie = "school_slug=; path=/; max-age=0";
 }
 
 export function isLoggedIn() {
