@@ -128,6 +128,23 @@ def save_branding(
     return _handle(lambda: service.update_branding(school_id, payload))
 
 
+@router.post("/{school_id}/branding/{asset_type}", response_model=schemas.SchoolDraftOut)
+async def upload_branding_asset(
+    school_id: int, asset_type: str,
+    file: UploadFile = File(...),
+    service: SchoolRegistrationService = Depends(_service),
+):
+    """
+    Real file upload for logo/banner/seal/letterhead — asset_type is one
+    of those four literal strings, matching the buttons on the wizard's
+    Branding step. Replaces pasting an external URL.
+    """
+    try:
+        return await service.upload_branding_asset(school_id, asset_type, file)
+    except SchoolRegistrationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ---------- Organization Settings ----------
 
 @router.patch("/{school_id}/organization-settings", response_model=schemas.SchoolOrganizationSettingsOut)

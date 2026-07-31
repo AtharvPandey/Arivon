@@ -225,6 +225,69 @@ class SchoolRegistrationService:
         self.db.refresh(school)
         return school
 
+    ASSET_FIELD_MAP = {
+        "logo": "logo_url",
+        "banner": "banner_url",
+        "seal": "seal_url",
+        "letterhead": "letterhead_url",
+    }
+    # A JPG has no transparency channel at all — uploading one as a seal
+    # would silently flatten it onto a white or black square, defeating
+    # the entire point of "transparent background". PNG-only for that
+    # one; the others are more forgiving since they're rendered as
+    # solid rectangles anyway.
+    ASSET_ALLOWED_EXTENSIONS = {
+        "logo": {".jpg", ".jpeg", ".png"},
+        "banner": {".jpg", ".jpeg", ".png"},
+        "seal": {".png"},
+        "letterhead": {".pdf", ".png"},
+    }
+
+    async def upload_branding_asset(self, school_id: int, asset_type: str, file: UploadFile) -> models.School:
+        """
+        Actual file upload for logo/banner/seal/letterhead — replaces
+        the old "paste a URL" fields. A school's official seal and
+        letterhead in particular need to be the real file the school
+        provided, not a link to wherever they happened to host it
+        online (which breaks the moment that external host goes away,
+        and doesn't work at all for a PDF letterhead).
+        """
+        school = self._get_editable_draft(school_id)
+
+        if asset_type not in self.ASSET_FIELD_MAP:
+            raise SchoolRegistrationError(f"Unknown asset type '{asset_type}'. Must be one of: {', '.join(self.ASSET_FIELD_MAP)}.")
+
+        ext = os.path.splitext(file.filename)[1].lower()
+        allowed_for_this_asset = self.ASSET_ALLOWED_EXTENSIONS[asset_type]
+        if ext not in allowed_for_this_asset:
+            raise SchoolRegistrationError(
+                f"'{ext}' isn't allowed for {asset_type}. Use: {', '.join(sorted(allowed_for_this_asset))}."
+            )
+
+        contents = await file.read()
+        if len(contents) > MAX_UPLOAD_SIZE_BYTES:
+            raise SchoolRegistrationError(f"File is too large ({len(contents) / 1024 / 1024:.1f}MB). Maximum size is 10MB.")
+
+        # Branding assets specifically need to be PUBLICLY visible — the
+        # logo shows on the unauthenticated /{slug}/login page. Only
+        # "uploads/photos" is actually mounted as a public static route
+        # (see main.py) — the bare "uploads/" used for compliance
+        # documents is not, since those are only ever fetched through an
+        # authenticated download endpoint. Reuse the public directory
+        # here, matching the same pattern the working School Profile
+        # logo upload already uses.
+        photos_dir = "uploads/photos"
+        os.makedirs(photos_dir, exist_ok=True)
+        stored_filename = f"{uuid.uuid4().hex}{ext}"
+        stored_path = os.path.join(photos_dir, stored_filename)
+        with open(stored_path, "wb") as f:
+            f.write(contents)
+
+        setattr(school, self.ASSET_FIELD_MAP[asset_type], f"/uploads/photos/{stored_filename}")
+        self.db.commit()
+        self.db.refresh(school)
+        return school
+
     def update_organization_settings(
         self, school_id: int, payload: schemas.SchoolOrganizationSettingsUpdate
     ) -> models.SchoolOrganizationSettings:
