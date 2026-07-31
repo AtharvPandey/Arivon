@@ -30,7 +30,7 @@ export default function CompliancePage() {
   async function load() {
     setLoading(true);
     try {
-      const data = await platformApiRequest("/platform/compliance/admin");
+      const data = await platformApiRequest("/platform/compliance/dashboard");
       setDashboard(data);
     } catch (err) {
       setError(err.message);
@@ -64,7 +64,7 @@ export default function CompliancePage() {
         <div className="flex items-center gap-6">
           <span className="font-display font-bold text-white">Arivon Platform</span>
           <nav className="flex items-center gap-4">
-            <button onClick={() => router.push("/platform/admin")} className="text-sm text-slate-300 hover:text-white">Overview</button>
+            <button onClick={() => router.push("/platform/dashboard")} className="text-sm text-slate-300 hover:text-white">Overview</button>
             <button onClick={() => router.push("/platform/schools")} className="text-sm text-slate-300 hover:text-white">Schools</button>
             <button onClick={() => router.push("/platform/verification")} className="text-sm text-slate-300 hover:text-white">Verification</button>
             <button className="text-sm text-white font-medium">Compliance</button>
