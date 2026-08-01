@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user
+from app.core.teacher_scope import assert_teacher_can_access_section
 
 router = APIRouter(prefix="/homework", tags=["homework"])
 
@@ -23,6 +24,9 @@ def create_homework(
     section = db.query(models.Section).filter(models.Section.id == payload.section_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+
+    assert_teacher_can_access_section(db, current_user, payload.section_id)
+
     subject = db.query(models.Subject).filter(models.Subject.id == payload.subject_id).first()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")

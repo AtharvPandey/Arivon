@@ -121,6 +121,23 @@ export default function Sidebar({ user }) {
   const router = useRouter();
   const [openGroups, setOpenGroups] = useState({});
 
+  // Teacher gets properly scoped, mobile-matching pages for these three
+  // instead of the shared admin views (which show every class in the
+  // school, not just theirs, and aren't the premium redesigned version).
+  // Every other role keeps the exact same NAV_GROUPS hrefs unchanged.
+  const TEACHER_HREF_OVERRIDES = {
+    "/admin/academics/homework": "/teacher/homework",
+    "/admin/academics/syllabus": "/teacher/syllabus",
+    "/admin/academics/examinations": "/teacher/exams",
+  };
+
+  function resolveHref(href) {
+    if (user?.role_name === "teacher" && TEACHER_HREF_OVERRIDES[href]) {
+      return TEACHER_HREF_OVERRIDES[href];
+    }
+    return href;
+  }
+
   function handleLogout() {
     clearToken();
     router.push("/");
@@ -195,13 +212,14 @@ export default function Sidebar({ user }) {
               {isOpen && (
                 <div className="ml-9 mt-1 space-y-0.5 border-l border-white/10 pl-3">
                   {items.map((item) => {
-                    const active = pathname === item.href;
+                    const resolvedHref = item.href ? resolveHref(item.href) : item.href;
+                    const active = pathname === resolvedHref;
                     const disabled = !item.href;
                     return (
                       <button
                         key={item.label}
                         disabled={disabled}
-                        onClick={() => item.href && router.push(item.href)}
+                        onClick={() => resolvedHref && router.push(resolvedHref)}
                         title={disabled ? "Coming in a future sprint" : undefined}
                         className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
                           disabled

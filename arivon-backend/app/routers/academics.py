@@ -352,8 +352,8 @@ def get_my_sections(
             models.Student.section_id == section.id
         ).count()
         subjects_taught = [
-            row[0] for row in
-            db.query(models.Subject.name)
+            {"id": row[0], "name": row[1]} for row in
+            db.query(models.Subject.id, models.Subject.name)
             .join(models.TimetableSlot, models.TimetableSlot.subject_id == models.Subject.id)
             .filter(models.TimetableSlot.section_id == section.id, models.TimetableSlot.teacher_id == current_user.id)
             .distinct()
@@ -362,6 +362,7 @@ def get_my_sections(
         result.append(schemas.MySection(
             section_id=section.id,
             section_name=section.school_class.name + " - " + section.name,
+            school_class_id=section.school_class_id,
             school_class_name=section.school_class.name,
             student_count=student_count,
             is_class_teacher=(section.class_teacher_id == current_user.id),
