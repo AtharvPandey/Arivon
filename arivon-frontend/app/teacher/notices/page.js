@@ -2,6 +2,6 @@
 
 import CommunicationHubView from "../../../components/CommunicationHubView";
 
-export default function AdminCommunicationPage() {
+export default function TeacherNoticesPage() {
   return <CommunicationHubView />;
 }

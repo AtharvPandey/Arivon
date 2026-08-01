@@ -67,7 +67,7 @@ export default function TeacherClassRosterPage() {
         ) : students.map((s) => (
           <button
             key={s.id}
-            onClick={() => router.push(`/admin/students/${s.id}`)}
+            onClick={() => router.push(`/teacher/students/${s.id}`)}
             className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
           >
             <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-semibold text-xs shrink-0">

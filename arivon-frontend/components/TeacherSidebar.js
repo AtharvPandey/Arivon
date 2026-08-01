@@ -89,9 +89,9 @@ export default function TeacherSidebar({ user }) {
 
       <div className="px-3 py-4 border-t border-white/5 space-y-1 shrink-0">
         <button
-          onClick={() => router.push("/admin/settings")}
+          onClick={() => router.push("/teacher/settings")}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            pathname === "/admin/settings" ? "bg-brand-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+            pathname === "/teacher/settings" ? "bg-brand-500 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
           }`}
         >
           <Settings size={18} />
