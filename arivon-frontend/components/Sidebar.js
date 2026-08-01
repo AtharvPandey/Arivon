@@ -95,7 +95,7 @@ const NAV_GROUPS = [
   },
 ];
 
-const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "platform"]);
+const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "platform", "change-password"]);
 
 /**
  * Strips a leading /{slug} segment from a pathname before comparing it

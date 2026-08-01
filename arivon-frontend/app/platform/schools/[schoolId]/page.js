@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, ShieldCheck, Activity, FileWarning, CreditCard, ListTree, UserCog } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Activity, FileWarning, CreditCard, ListTree, UserCog, Building2, MapPin, Landmark } from "lucide-react";
 import { isPlatformLoggedIn, platformApiRequest } from "../../../../lib/platformApi";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: Activity },
+  { key: "profile", label: "Profile", icon: Building2 },
   { key: "timeline", label: "Timeline", icon: ListTree },
   { key: "compliance", label: "Compliance", icon: FileWarning },
   { key: "subscription", label: "Subscription", icon: CreditCard },
@@ -23,6 +24,7 @@ export default function SchoolDetailPage() {
   const schoolId = params.schoolId;
 
   const [detail, setDetail] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [compliance, setCompliance] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -41,12 +43,14 @@ export default function SchoolDetailPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [detailData, timelineData, complianceData] = await Promise.all([
+      const [detailData, profileData, timelineData, complianceData] = await Promise.all([
         platformApiRequest(`/platform/school-management/schools/${schoolId}/detail`),
+        platformApiRequest(`/platform/school-management/schools/${schoolId}/profile`),
         platformApiRequest(`/platform/school-management/schools/${schoolId}/timeline`),
         platformApiRequest(`/platform/compliance/dashboard?school_id=${schoolId}`),
       ]);
       setDetail(detailData);
+      setProfile(profileData);
       setTimeline(timelineData);
       setCompliance(complianceData);
     } catch (err) {
@@ -147,6 +151,65 @@ export default function SchoolDetailPage() {
           </div>
         )}
 
+        {activeTab === "profile" && profile && (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 size={15} className="text-brand-600" />
+                <h3 className="text-sm font-semibold text-slate-800">Identity</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <ProfileField label="School Name" value={profile.name} />
+                <ProfileField label="Short Name" value={profile.short_name} />
+                <ProfileField label="Board Type" value={profile.board_type} />
+                <ProfileField label="Year Established" value={profile.year_established} />
+                <ProfileField label="School Type" value={profile.school_type} />
+                <ProfileField label="School Category" value={profile.school_category} />
+                <ProfileField label="Motto" value={profile.motto} span2 />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Landmark size={15} className="text-brand-600" />
+                <h3 className="text-sm font-semibold text-slate-800">Government Recognition & Affiliations</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <ProfileField label="UDISE Code" value={profile.udise_code} />
+                <ProfileField label="Affiliation Number" value={profile.affiliation_number} />
+                <ProfileField label="Recognition Number" value={profile.recognition_number} />
+                <ProfileField label="Trust Registration Number" value={profile.trust_registration_number} />
+                <ProfileField label="Trust Name" value={profile.trust_name} span2 />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin size={15} className="text-brand-600" />
+                <h3 className="text-sm font-semibold text-slate-800">Address & Contact</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <ProfileField label="Address" value={profile.address} span2 />
+                <ProfileField label="City" value={profile.city} />
+                <ProfileField label="State" value={profile.state} />
+                <ProfileField label="Contact Email" value={profile.contact_email} />
+                <ProfileField label="Contact Phone" value={profile.contact_phone} />
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <UserCog size={15} className="text-brand-600" />
+                <h3 className="text-sm font-semibold text-slate-800">Leadership</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <ProfileField label="Chairman" value={profile.chairman_name} />
+                <ProfileField label="Managing Director" value={profile.managing_director_name} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "timeline" && (
           <div className="bg-white border border-slate-200 rounded-xl p-5">
             {timeline.length === 0 ? (
@@ -231,6 +294,15 @@ function StatCard({ label, value }) {
     <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
       <p className="text-2xl font-bold text-slate-900">{value}</p>
       <p className="text-xs text-slate-500">{label}</p>
+    </div>
+  );
+}
+
+function ProfileField({ label, value, span2 = false }) {
+  return (
+    <div className={span2 ? "col-span-2" : ""}>
+      <p className="text-xs font-medium text-slate-500 mb-0.5">{label}</p>
+      <p className="text-slate-900">{value || <span className="text-slate-300">Not set</span>}</p>
     </div>
   );
 }

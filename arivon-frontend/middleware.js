@@ -38,6 +38,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   "teacher",
   "admissions",
   "platform",
+  "change-password",
   "api",
   "_next",
   "favicon.ico",

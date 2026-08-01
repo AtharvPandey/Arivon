@@ -26,7 +26,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [accessRevoked, setAccessRevoked] = useState(false);
+  const [errorKind, setErrorKind] = useState(null); // null | "revoked" | "expired"
   const [loading, setLoading] = useState(false);
   const [school, setSchool] = useState(null);
   const [schoolLoadFailed, setSchoolLoadFailed] = useState(false);
@@ -47,7 +47,7 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    setAccessRevoked(false);
+    setErrorKind(null);
     setLoading(true);
     try {
       // /auth/login expects form-encoded fields named "username" and "password"
@@ -68,15 +68,21 @@ export default function LoginPage() {
       if (slug) {
         document.cookie = `school_slug=${slug}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
       }
-      router.push(getHomeRouteForRole(me.role_name, slug));
+      if (me.must_change_password) {
+        router.push(slug ? `/${slug}/change-password` : "/change-password");
+      } else {
+        router.push(getHomeRouteForRole(me.role_name, slug));
+      }
     } catch (err) {
-      // The backend prefixes this one specific error so the frontend can
-      // tell "wrong password" apart from "this account was deliberately
-      // revoked" — the second one deserves a much clearer, calmer
-      // explanation than a generic red error line.
+      // The backend prefixes these specific errors so the frontend can
+      // tell "wrong password" apart from states that deserve a much
+      // clearer, calmer explanation than a generic red error line.
       if (err.message.startsWith("ACCOUNT_DEACTIVATED:")) {
-        setAccessRevoked(true);
+        setErrorKind("revoked");
         setError(err.message.replace("ACCOUNT_DEACTIVATED:", "").trim());
+      } else if (err.message.startsWith("TEMP_PASSWORD_EXPIRED:")) {
+        setErrorKind("expired");
+        setError(err.message.replace("TEMP_PASSWORD_EXPIRED:", "").trim());
       } else {
         setError(err.message);
       }
@@ -156,18 +162,20 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && accessRevoked && (
+          {error && errorKind && (
             <div className="bg-rose-50 border border-rose-200 rounded-lg px-4 py-3 flex items-start gap-2.5">
               <svg className="w-4 h-4 text-rose-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
               <div>
-                <p className="text-sm font-semibold text-rose-800">Access Denied</p>
+                <p className="text-sm font-semibold text-rose-800">
+                  {errorKind === "expired" ? "Temporary Password Expired" : "Access Denied"}
+                </p>
                 <p className="text-xs text-rose-700 mt-0.5">{error}</p>
               </div>
             </div>
           )}
-          {error && !accessRevoked && (
+          {error && !errorKind && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
               {error}
             </p>

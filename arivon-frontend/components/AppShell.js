@@ -22,7 +22,13 @@ export default function AppShell({ children }) {
       return;
     }
     apiRequest("/auth/me")
-      .then(setUser)
+      .then((data) => {
+        if (data.must_change_password) {
+          router.push("/change-password");
+          return;
+        }
+        setUser(data);
+      })
       .catch(() => router.push("/"));
   }, []);
 

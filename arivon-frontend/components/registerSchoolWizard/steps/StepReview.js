@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertTriangle, Upload, PartyPopper } from "lucide-react";
 import { platformApiRequest, platformApiUpload } from "../../../lib/platformApi";
+import CredentialsCard from "../../CredentialsCard";
 
 const DOC_TYPES = [
   { value: "affiliation_certificate", label: "Affiliation Certificate" },
@@ -30,7 +31,6 @@ export default function StepReview({ draftId, onBack }) {
   const [docType, setDocType] = useState("affiliation_certificate");
   const [uploading, setUploading] = useState(false);
 
-  const [password, setPassword] = useState("");
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -70,15 +70,11 @@ export default function StepReview({ draftId, onBack }) {
 
   async function handleCreateSchool() {
     setError("");
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters and contain a digit.");
-      return;
-    }
     setCreating(true);
     try {
       const data = await platformApiRequest(`/school-registration/${draftId}/create`, {
         method: "POST",
-        body: { admin_password: password },
+        body: {},
       });
       setResult(data);
     } catch (err) {
@@ -101,9 +97,17 @@ export default function StepReview({ draftId, onBack }) {
           {result.classes_created} classes and {result.departments_created} departments were auto-provisioned.
         </p>
 
-        <div className="bg-slate-50 rounded-lg p-4 mb-6 text-left max-w-sm mx-auto">
-          <p className="text-xs text-slate-500 mb-1">School Admin login</p>
-          <p className="text-sm font-medium text-slate-900">{result.admin_login_email}</p>
+        <div className="text-left max-w-sm mx-auto mb-6">
+          <CredentialsCard
+            title="School Admin login"
+            result={{
+              fullName: "School Admin",
+              email: result.admin_login_email,
+              temporaryPassword: result.temporary_password,
+              tempPasswordExpiresAt: result.temp_password_expires_at,
+              loginUrl: `${window.location.origin}${result.login_url_path}`,
+            }}
+          />
         </div>
 
         <div className="text-left max-w-sm mx-auto mb-6">
@@ -204,31 +208,18 @@ export default function StepReview({ draftId, onBack }) {
 
       {/* Create School */}
       <div className="border-t border-slate-100 pt-5">
-        <label htmlFor="school-admin-password" className="text-sm font-semibold text-slate-800 mb-2 block">
-          Set the School Admin password
-        </label>
-        <p id="password-hint" className="text-xs text-slate-500 mb-3">
-          This is the only time this password is ever entered — never stored until this exact moment.
+        <p className="text-sm font-semibold text-slate-800 mb-1">Ready to create this school</p>
+        <p className="text-xs text-slate-500 mb-3">
+          A temporary password for the School Admin will be generated automatically — you'll see it once, right after creating, to share with them.
         </p>
-        <div className="flex gap-3">
-          <input
-            id="school-admin-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters, 1 digit"
-            aria-describedby="password-hint"
-            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
-          <button
-            onClick={handleCreateSchool}
-            disabled={creating || !review?.ready_to_create}
-            aria-label="Create School"
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-5 py-2.5 whitespace-nowrap"
-          >
-            {creating ? "Creating..." : "Create School"}
-          </button>
-        </div>
+        <button
+          onClick={handleCreateSchool}
+          disabled={creating || !review?.ready_to_create}
+          aria-label="Create School"
+          className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg px-5 py-2.5 whitespace-nowrap"
+        >
+          {creating ? "Creating..." : "Create School"}
+        </button>
       </div>
 
       <button onClick={onBack} className="text-sm font-medium text-slate-600 hover:text-slate-900 mt-6">
