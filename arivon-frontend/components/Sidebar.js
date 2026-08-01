@@ -90,8 +90,7 @@ const NAV_GROUPS = [
     roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"], standalone: true,
   },
   {
-    label: "Settings", icon: Settings, href: "/admin/settings",
-    roles: ["school_admin", "administrator", "super_admin"], standalone: true,
+    label: "Settings", icon: Settings, href: "/admin/settings", roles: null, standalone: true,
   },
 ];
 
