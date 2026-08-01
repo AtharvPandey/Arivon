@@ -2842,3 +2842,30 @@ class SchoolPublicOut(BaseModel):
     board_type: str
     city: str | None
     state: str | None
+
+
+# =========================================================================
+# Teacher Portal — properly scoped to only what a teacher is assigned
+# to teach, never the whole school (see app/core/teacher_scope.py and
+# app/routers/teacher_portal.py).
+# =========================================================================
+
+class TeacherTodayPeriod(BaseModel):
+    slot_id: int
+    period_number: int
+    start_time: str
+    end_time: str
+    section_id: int
+    class_name: str
+    section_name: str
+    subject_name: str
+    attendance_marked: bool
+
+
+class TeacherClassSummary(BaseModel):
+    section_id: int
+    class_name: str
+    section_name: str
+    student_count: int
+    is_class_teacher: bool
+    subjects_taught: list[str]

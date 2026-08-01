@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user
+from app.core.teacher_scope import assert_teacher_can_access_section
 from app.core.notifications import send_whatsapp_message
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
@@ -28,6 +29,8 @@ def mark_attendance(
     ).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+
+    assert_teacher_can_access_section(db, current_user, payload.section_id)
 
     # Validate every student actually belongs to this section BEFORE writing
     # anything — we want this to be all-or-nothing, not half-saved on error.
