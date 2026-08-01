@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, SessionLocal
 from app import models
 from app.core.config import settings
-from app.routers import auth, schools, academic_years, classes, students, staff, attendance, staff_attendance, dashboard, fees, announcements, guardians, admissions, documents, academics, platform_auth, platform, roles, events, houses, school_registration, verification, school_management, morning_briefing, complaints, substitutions, leave, homework, syllabus, exams, communication, transport, certificates, salary, reports, teacher_portal
+from app.routers import auth, schools, academic_years, classes, students, staff, attendance, staff_attendance, dashboard, fees, announcements, guardians, admissions, documents, academics, platform_auth, platform, roles, events, houses, school_registration, verification, school_management, morning_briefing, complaints, substitutions, leave, homework, syllabus, exams, communication, transport, certificates, salary, reports
 
 app = FastAPI(
     title="Arivon API",
@@ -72,7 +72,6 @@ app.include_router(transport.router)
 app.include_router(certificates.router)
 app.include_router(salary.router)
 app.include_router(reports.router)
-app.include_router(teacher_portal.router)
 app.include_router(events.router)
 
 

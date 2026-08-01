@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import MobileBottomNav from "./MobileBottomNav";
 import { apiRequest, isLoggedIn } from "../lib/api";
 
 /**
@@ -11,6 +12,12 @@ import { apiRequest, isLoggedIn } from "../lib/api";
  * route group: /admin/*, /teacher/*, /admissions/*, and any future
  * role-specific route tree. Pulled out once so adding a new role's
  * route group never means re-copying this auth/layout logic again.
+ *
+ * Teacher gets one addition: on mobile, the desktop sidebar (built for
+ * a dozen-plus nav items) gives way to a 5-tab bottom bar instead —
+ * the standard mobile pattern for a small, focused destination set.
+ * This is scoped specifically to role_name === "teacher" so every
+ * other role's behavior is completely unchanged.
  */
 export default function AppShell({ children }) {
   const router = useRouter();
@@ -32,13 +39,22 @@ export default function AppShell({ children }) {
       .catch(() => router.push("/"));
   }, []);
 
+  const isTeacher = user?.role_name === "teacher";
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar user={user} />
+      <div className={isTeacher ? "hidden md:flex" : "flex"}>
+        <Sidebar user={user} />
+      </div>
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar user={user} />
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className={`flex-1 overflow-y-auto ${isTeacher ? "pb-16 md:pb-0" : ""}`}>{children}</div>
       </div>
+      {isTeacher && (
+        <div className="md:hidden">
+          <MobileBottomNav />
+        </div>
+      )}
     </div>
   );
 }

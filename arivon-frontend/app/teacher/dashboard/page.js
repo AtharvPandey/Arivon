@@ -2,33 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Users, BookOpen, CalendarCheck, ClipboardList } from "lucide-react";
+import { Clock, CheckCircle2, Circle, ArrowRight, Users2, BookOpen, ClipboardList } from "lucide-react";
 import { apiRequest, isLoggedIn } from "../../../lib/api";
-import MiniCalendar from "../../../components/MiniCalendar";
-import NoticeBoard from "../../../components/NoticeBoard";
 
-const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-function todayDayOfWeek() {
-  // JS getDay(): 0=Sunday..6=Saturday. Our schema: 0=Monday..6=Sunday.
-  const jsDay = new Date().getDay();
-  return jsDay === 0 ? 6 : jsDay - 1;
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default function TeacherDashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [today, setToday] = useState([]);
   const [sections, setSections] = useState([]);
-  const [schedule, setSchedule] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.push("/");
-      return;
-    }
+    if (!isLoggedIn()) { router.push("/"); return; }
     init();
   }, []);
 
@@ -36,14 +29,12 @@ export default function TeacherDashboard() {
     try {
       const me = await apiRequest("/auth/me");
       setUser(me);
-      const [mySections, mySchedule, notices] = await Promise.all([
+      const [todaySchedule, mySections] = await Promise.all([
+        apiRequest("/timetable/today"),
         apiRequest("/my-sections"),
-        apiRequest("/timetable/mine"),
-        apiRequest(`/announcements/?school_id=${me.school_id}`),
       ]);
+      setToday(todaySchedule);
       setSections(mySections);
-      setSchedule(mySchedule);
-      setAnnouncements(notices);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,104 +42,105 @@ export default function TeacherDashboard() {
     }
   }
 
-  async function loadAnnouncements(schoolId) {
-    const data = await apiRequest(`/announcements/?school_id=${schoolId}`);
-    setAnnouncements(data);
-  }
+  if (loading) return <div className="max-w-lg mx-auto px-4 py-6 text-sm text-slate-600">Loading...</div>;
 
-  const today = todayDayOfWeek();
-  const todaysSchedule = schedule.filter((s) => s.day_of_week === today);
   const totalStudents = sections.reduce((sum, s) => sum + s.student_count, 0);
-
-  if (loading) return <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-slate-600">Loading...</div>;
+  const markedCount = today.filter((p) => p.attendance_marked).length;
+  const todayDateStr = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      <h2 className="text-2xl font-display font-bold text-slate-900 mb-1">
-        Welcome back{user ? `, ${user.full_name.split(" ")[0]}` : ""}
-      </h2>
-      <p className="text-sm text-slate-600 mb-6">Here's your day at a glance.</p>
+    <div className="max-w-lg mx-auto px-4 py-6 pb-8">
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-brand-600 to-brand-700 rounded-2xl p-5 mb-5 text-white">
+        <p className="text-xs text-brand-100 mb-0.5">{todayDateStr}</p>
+        <h2 className="text-xl font-display font-bold mb-3">
+          {greeting()}{user ? `, ${user.full_name.split(" ")[0]}` : ""}
+        </h2>
+        <div className="flex items-center gap-4 text-sm">
+          <div>
+            <p className="text-2xl font-bold leading-none">{today.length}</p>
+            <p className="text-xs text-brand-100 mt-1">Periods today</p>
+          </div>
+          <div className="w-px h-8 bg-white/20" />
+          <div>
+            <p className="text-2xl font-bold leading-none">{markedCount}/{today.length}</p>
+            <p className="text-xs text-brand-100 mt-1">Attendance done</p>
+          </div>
+          <div className="w-px h-8 bg-white/20" />
+          <div>
+            <p className="text-2xl font-bold leading-none">{totalStudents}</p>
+            <p className="text-xs text-brand-100 mt-1">Total students</p>
+          </div>
+        </div>
+      </div>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{error}</p>}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-slate-500">My Classes</p>
-            <BookOpen size={16} className="text-slate-400" />
-          </div>
-          <p className="text-3xl font-bold text-slate-900">{sections.length}</p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-slate-500">My Students</p>
-            <Users size={16} className="text-slate-400" />
-          </div>
-          <p className="text-3xl font-bold text-slate-900">{totalStudents}</p>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-slate-500">Periods Today</p>
-            <CalendarCheck size={16} className="text-slate-400" />
-          </div>
-          <p className="text-3xl font-bold text-slate-900">{todaysSchedule.length}</p>
-        </div>
-        <button
-          onClick={() => router.push("/admin/attendance")}
-          className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl p-5 flex flex-col items-start justify-center gap-1 text-left transition-colors"
-        >
-          <ClipboardList size={18} />
-          <span className="text-sm font-medium">Mark Attendance</span>
+      {/* Today's Schedule */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <h3 className="text-sm font-semibold text-slate-800">Today's Schedule</h3>
+        <button onClick={() => router.push("/teacher/schedule")} className="text-xs font-medium text-brand-700 hover:underline flex items-center gap-0.5">
+          Full week <ArrowRight size={11} />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Today's Schedule ({DAY_NAMES[today]})</h3>
-          {todaysSchedule.length === 0 ? (
-            <p className="text-sm text-slate-500">No periods scheduled for you today.</p>
-          ) : (
-            <div className="space-y-2">
-              {todaysSchedule.map((s) => (
-                <div key={s.id} className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-2 last:pb-0">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{s.subject_name}</p>
-                    <p className="text-xs text-slate-500">{s.section_name}</p>
-                  </div>
-                  <span className="text-xs text-slate-500">{s.start_time} - {s.end_time}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {today.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-6 text-center mb-6">
+          <p className="text-sm text-slate-500">No periods scheduled for you today.</p>
         </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">My Classes</h3>
-          {sections.length === 0 ? (
-            <p className="text-sm text-slate-500">No classes assigned yet — set up via Academics by your Academic Coordinator.</p>
-          ) : (
-            <div className="space-y-2">
-              {sections.map((s) => (
-                <div key={s.section_id} className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-2 last:pb-0">
-                  <p className="text-sm font-medium text-slate-900">{s.section_name}</p>
-                  <span className="text-xs text-slate-500">{s.student_count} students</span>
-                </div>
-              ))}
+      ) : (
+        <div className="space-y-2 mb-6">
+          {today.map((p) => (
+            <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center gap-3">
+              <div className="flex flex-col items-center justify-center w-14 shrink-0">
+                <p className="text-xs font-semibold text-slate-700">{p.start_time}</p>
+                <p className="text-[10px] text-slate-400">P{p.period_number}</p>
+              </div>
+              <div className="w-px h-9 bg-slate-100 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">{p.subject_name}</p>
+                <p className="text-xs text-slate-500 truncate">{p.section_name}</p>
+              </div>
+              {p.attendance_marked ? (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-brand-700 bg-brand-50 px-2.5 py-1.5 rounded-lg shrink-0">
+                  <CheckCircle2 size={12} /> Marked
+                </span>
+              ) : (
+                <button
+                  onClick={() => router.push(`/teacher/attendance/mark?section_id=${p.section_id}&period_number=${p.period_number}`)}
+                  className="flex items-center gap-1 text-[11px] font-medium text-white bg-brand-600 hover:bg-brand-700 px-2.5 py-1.5 rounded-lg shrink-0"
+                >
+                  <Circle size={11} /> Mark
+                </button>
+              )}
             </div>
-          )}
+          ))}
         </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <MiniCalendar />
-        {user && (
-          <NoticeBoard
-            schoolId={user.school_id}
-            userRole={user.role_name}
-            announcements={announcements}
-            onPosted={() => loadAnnouncements(user.school_id)}
-          />
-        )}
+      {/* Quick links */}
+      <div className="grid grid-cols-3 gap-3">
+        <button
+          onClick={() => router.push("/teacher/classes")}
+          className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col items-center gap-1.5 hover:bg-slate-50 transition-colors"
+        >
+          <Users2 size={18} className="text-brand-600" />
+          <span className="text-xs font-medium text-slate-700">Classes</span>
+        </button>
+        <button
+          onClick={() => router.push("/admin/academics/homework")}
+          className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col items-center gap-1.5 hover:bg-slate-50 transition-colors"
+        >
+          <ClipboardList size={18} className="text-brand-600" />
+          <span className="text-xs font-medium text-slate-700">Homework</span>
+        </button>
+        <button
+          onClick={() => router.push("/admin/academics/syllabus")}
+          className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col items-center gap-1.5 hover:bg-slate-50 transition-colors"
+        >
+          <BookOpen size={18} className="text-brand-600" />
+          <span className="text-xs font-medium text-slate-700">Syllabus</span>
+        </button>
       </div>
     </div>
   );
