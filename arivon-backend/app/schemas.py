@@ -911,13 +911,19 @@ class MyScheduleSlot(BaseModel):
     subject_name: str
 
 
+class MySectionSubject(BaseModel):
+    id: int
+    name: str
+
+
 class MySection(BaseModel):
     section_id: int
     section_name: str
+    school_class_id: int
     school_class_name: str
     student_count: int
     is_class_teacher: bool = False
-    subjects_taught: list[str] = []
+    subjects_taught: list[MySectionSubject] = []
 
 
 class MyTodaySlot(BaseModel):

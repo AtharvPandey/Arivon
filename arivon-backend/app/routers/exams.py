@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user, require_roles
+from app.core.teacher_scope import assert_teacher_can_access_section
 
 EXAM_SETUP_ROLES = ("academic_coordinator", "school_admin", "administrator", "principal", "super_admin")
 MARKS_LOCK_ROLES = ("school_admin", "administrator", "principal", "vice_principal", "super_admin")
@@ -194,6 +195,8 @@ def enter_marks(
     schedule = db.query(models.ExamSchedule).filter(models.ExamSchedule.id == schedule_id).first()
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule entry not found")
+
+    assert_teacher_can_access_section(db, current_user, section_id)
 
     for entry in payload.entries:
         existing = db.query(models.ExamMarks).filter(

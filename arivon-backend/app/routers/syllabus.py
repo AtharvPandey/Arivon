@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user
+from app.core.teacher_scope import assert_teacher_can_access_class_subject
 
 router = APIRouter(prefix="/syllabus", tags=["syllabus"])
 
@@ -81,6 +82,8 @@ def toggle_chapter_completion(chapter_id: int, db: Session = Depends(get_db), cu
     chapter = db.query(models.SyllabusChapter).filter(models.SyllabusChapter.id == chapter_id).first()
     if not chapter:
         raise HTTPException(status_code=404, detail="Chapter not found")
+
+    assert_teacher_can_access_class_subject(db, current_user, chapter.school_class_id, chapter.subject_id)
 
     chapter.is_completed = not chapter.is_completed
     if chapter.is_completed:

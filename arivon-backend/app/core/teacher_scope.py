@@ -46,3 +46,25 @@ def assert_teacher_can_access_section(db: Session, current_user: models.User, se
             status_code=403,
             detail="You're not assigned to this class.",
         )
+
+
+def assert_teacher_can_access_class_subject(db: Session, current_user: models.User, school_class_id: int, subject_id: int) -> None:
+    """Syllabus is tracked per class+subject, not per section (the
+    syllabus is the same across every section of one class) — so this
+    checks a looser condition than assert_teacher_can_access_section:
+    does this teacher teach this subject in ANY section of this class?
+    A no-op for every role except teacher, same as the section check."""
+    if current_user.role_name != "teacher":
+        return
+    taught = db.query(models.TimetableSlot).join(
+        models.Section, models.TimetableSlot.section_id == models.Section.id
+    ).filter(
+        models.TimetableSlot.teacher_id == current_user.id,
+        models.TimetableSlot.subject_id == subject_id,
+        models.Section.school_class_id == school_class_id,
+    ).first()
+    if not taught:
+        raise HTTPException(
+            status_code=403,
+            detail="You don't teach this subject in this class.",
+        )
