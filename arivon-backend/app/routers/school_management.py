@@ -60,6 +60,21 @@ def get_school_detail(school_id: int, service: SchoolManagementService = Depends
     return service.get_school_detail(school_id)
 
 
+@router.get("/schools/{school_id}/profile", response_model=schemas.SchoolOut)
+def get_school_profile(school_id: int, db: Session = Depends(get_db)):
+    """
+    Full identity/recognition/contact/branding profile — the same
+    SchoolOut shape the School Admin's own Profile page already shows,
+    reused here so Platform Admin can see the actual school data
+    (address, motto, trust registration, UDISE code, etc.) instead of
+    only the health-score/analytics summary the Overview tab has.
+    """
+    school = db.query(models.School).filter(models.School.id == school_id).first()
+    if not school:
+        raise HTTPException(status_code=404, detail="School not found")
+    return school
+
+
 # ---------- School Timeline ----------
 
 @router.get("/schools/{school_id}/timeline", response_model=list[schemas.TimelineEvent])

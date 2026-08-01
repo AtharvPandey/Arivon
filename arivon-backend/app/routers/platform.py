@@ -14,6 +14,7 @@ from app import models, schemas
 from app.core.deps import get_current_platform_admin
 from app.core.security import hash_password
 from app.core.slug_utils import generate_unique_school_slug
+from app.core.temp_password_utils import generate_temp_password, temp_password_expiry
 
 router = APIRouter(
     prefix="/platform",
@@ -98,6 +99,46 @@ def get_school(school_id: int, db: Session = Depends(get_db)):
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
     return school
+
+
+@router.post("/schools/{school_id}/reset-admin-password", response_model=schemas.UserCreatedOut)
+def reset_school_admin_password(school_id: int, db: Session = Depends(get_db)):
+    """
+    Mirrors staff.py's reset_staff_password, one level up — covers the
+    same "temporary password expired before they ever logged in" case,
+    but for a School Admin specifically, whose account only Platform
+    Admin can touch (School Admin can't reset their own password this
+    way, matching the same one-way authority chain used everywhere
+    else in this system).
+    """
+    school = db.query(models.School).filter(models.School.id == school_id).first()
+    if not school:
+        raise HTTPException(status_code=404, detail="School not found")
+
+    admin_user = (
+        db.query(models.User)
+        .join(models.Role)
+        .filter(models.User.school_id == school_id, models.Role.name == "school_admin")
+        .first()
+    )
+    if not admin_user:
+        raise HTTPException(status_code=404, detail="No School Admin account found for this school")
+
+    temp_password = generate_temp_password()
+    expires_at = temp_password_expiry()
+    admin_user.hashed_password = hash_password(temp_password)
+    admin_user.must_change_password = True
+    admin_user.temp_password_expires_at = expires_at
+    db.commit()
+    db.refresh(admin_user)
+
+    login_path = f"/{school.slug}/login" if school.slug else "/login"
+    return schemas.UserCreatedOut(
+        user=admin_user,
+        temporary_password=temp_password,
+        temp_password_expires_at=expires_at,
+        login_url_path=login_path,
+    )
 
 
 @router.patch("/schools/{school_id}/subscription", response_model=schemas.SchoolPlatformOut)

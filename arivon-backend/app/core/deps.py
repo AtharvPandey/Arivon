@@ -5,7 +5,7 @@ that don't have a valid login token, and hand you the logged-in User
 object if they do.
 """
 
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -17,8 +17,17 @@ from app import models
 # "Authorize" button in the docs UI knows where to send credentials.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
+# The only two endpoints a user with a pending forced password change is
+# allowed to hit — "who am I" (so the frontend can detect the pending
+# state and show the right screen) and the actual change-password
+# action itself. Every other endpoint in the app is blocked until they
+# change it, enforced here in the one shared auth dependency rather
+# than needing to touch every individual endpoint.
+PASSWORD_CHANGE_EXEMPT_PATHS = {"/auth/me", "/auth/change-password"}
+
 
 def get_current_user(
+    request: Request,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> models.User:
@@ -47,6 +56,12 @@ def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This school's account has been suspended. Contact Arivon support.",
+        )
+
+    if user.must_change_password and request.url.path not in PASSWORD_CHANGE_EXEMPT_PATHS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="PASSWORD_CHANGE_REQUIRED: You must change your temporary password before continuing.",
         )
 
     return user

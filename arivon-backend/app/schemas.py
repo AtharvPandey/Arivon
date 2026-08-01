@@ -191,7 +191,10 @@ class UserRegister(BaseModel):
     role_name: str  # e.g. "principal", "teacher" — looked up against Role table
     full_name: str
     email: EmailStr
-    password: str
+    # No password field — the system generates a temporary one. A
+    # human-chosen "temporary" password tends to be weak in exactly the
+    # scenario where it matters most, before the real holder has set
+    # their own.
 
 
 class UserOut(BaseModel):
@@ -205,9 +208,28 @@ class UserOut(BaseModel):
     school_logo_url: str | None = None
     school_primary_color: str | None = None
     school_secondary_color: str | None = None
+    must_change_password: bool = False
 
     class Config:
         from_attributes = True
+
+
+class UserCreatedOut(BaseModel):
+    """
+    Returned once, right after creating a staff account — the only
+    place the plaintext temporary password ever appears, since it's
+    never stored or retrievable again after this. The frontend shows it
+    once for the admin to copy/share, then it's gone.
+    """
+    user: UserOut
+    temporary_password: str
+    temp_password_expires_at: datetime
+    login_url_path: str  # e.g. "/{slug}/login" — frontend prepends its own origin
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 
 class Token(BaseModel):
@@ -1486,20 +1508,14 @@ class SchoolReviewOut(BaseModel):
 
 class CreateSchoolRequest(BaseModel):
     """
-    Final step. The School Admin's password is submitted here for the
-    FIRST and ONLY time — never stored in the draft, hashed immediately
-    into the User row created during this call.
+    Final step. No admin_password field anymore — the system generates
+    a temporary password rather than the Platform Admin typing one in
+    on the school's behalf (see app/core/temp_password_utils.py). This
+    is a plain, deliberately empty request body; kept as its own class
+    in case fields get added here later (e.g. an "approve immediately"
+    flag).
     """
-    admin_password: str
-
-    @field_validator("admin_password")
-    @classmethod
-    def validate_password_strength(cls, value):
-        if len(value) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not any(c.isdigit() for c in value):
-            raise ValueError("Password must contain at least one digit")
-        return value
+    pass
 
 
 class ProvisioningStepResult(BaseModel):
@@ -1522,6 +1538,9 @@ class CreateSchoolResponse(BaseModel):
     lifecycle_status: str
     admin_login_email: str
     provisioning_steps: list[ProvisioningStepResult]
+    temporary_password: str
+    temp_password_expires_at: datetime
+    login_url_path: str
 
 
 # =========================================================================

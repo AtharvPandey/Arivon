@@ -172,9 +172,12 @@ def main():
             continue
         r = post("/auth/register", json={
             "role_name": "teacher",
-            "full_name": name, "email": email, "password": "TeacherPass123",
+            "full_name": name, "email": email,
         }, token=school_admin_token)
         if r.status_code == 201:
+            temp_password = r.json()["temporary_password"]
+            temp_token = login("/auth/login", email, temp_password)
+            post("/auth/change-password", json={"current_password": temp_password, "new_password": "TeacherPass123"}, token=temp_token)
             created_teachers += 1
     print(f"  {created_teachers} new teachers created (existing ones skipped).")
 

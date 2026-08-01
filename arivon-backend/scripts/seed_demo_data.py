@@ -138,9 +138,21 @@ def main():
     print("=== 7. Staff ===")
     staff_tokens = {}
     for member in STAFF:
-        r = post("/auth/register", json=member, token=school_admin_token)
-        status = "created" if r.status_code == 201 else r.text
-        print(f"  {member['role_name']} {member['full_name']}: {r.status_code} {status if r.status_code != 201 else ''}")
+        # /auth/register no longer accepts a chosen password — the
+        # system generates a temporary one, returned once in the
+        # response. Immediately change it to the stable password this
+        # script (and every credential list in this whole project) has
+        # used all along, so every downstream login below keeps working
+        # exactly as before.
+        r = post("/auth/register", json={"role_name": member["role_name"], "full_name": member["full_name"], "email": member["email"]}, token=school_admin_token)
+        if r.status_code == 201:
+            temp_password = r.json()["temporary_password"]
+            temp_token = login("/auth/login", member["email"], temp_password)
+            change_r = post("/auth/change-password", json={"current_password": temp_password, "new_password": member["password"]}, token=temp_token)
+            status = "created + password set" if change_r.status_code == 200 else f"created but password change failed: {change_r.text}"
+        else:
+            status = r.text
+        print(f"  {member['role_name']} {member['full_name']}: {r.status_code} {status if r.status_code != 201 else status}")
         staff_tokens[member["email"]] = member["password"]
 
     academic_token = login("/auth/login", "academic@greenvalley.edu", "AcademicPass123")

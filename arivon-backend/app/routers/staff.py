@@ -6,6 +6,8 @@ import uuid
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user, require_roles
+from app.core.security import hash_password
+from app.core.temp_password_utils import generate_temp_password, temp_password_expiry
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -210,4 +212,41 @@ def set_staff_access(user_id: int, is_active: bool, db: Session = Depends(get_db
         is_active=target.is_active, employee_id=profile.employee_id if profile else None,
         designation=profile.designation if profile else None, department=profile.department if profile else None,
         photo_url=profile.photo_url if profile else None,
+    )
+
+
+@router.post(
+    "/{user_id}/reset-password", response_model=schemas.UserCreatedOut,
+    dependencies=[Depends(require_roles("school_admin"))],
+)
+def reset_staff_password(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Covers the case where a staff member's temporary password expired
+    (3 days, unchanged) before they ever logged in and changed it —
+    without this, that account would be permanently locked out with no
+    way back in. School Admin issues a fresh temporary password here,
+    resetting the 3-day clock; also works as a general "I forgot my
+    password" reset at any time, not just after expiry.
+    """
+    target = db.query(models.User).filter(models.User.id == user_id, models.User.school_id == current_user.school_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    if target.role_name == "school_admin":
+        raise HTTPException(status_code=400, detail="The School Admin account's password can't be reset here.")
+
+    temp_password = generate_temp_password()
+    expires_at = temp_password_expiry()
+    target.hashed_password = hash_password(temp_password)
+    target.must_change_password = True
+    target.temp_password_expires_at = expires_at
+    db.commit()
+    db.refresh(target)
+
+    school = db.query(models.School).filter(models.School.id == current_user.school_id).first()
+    login_path = f"/{school.slug}/login" if school and school.slug else "/login"
+    return schemas.UserCreatedOut(
+        user=target,
+        temporary_password=temp_password,
+        temp_password_expires_at=expires_at,
+        login_url_path=login_path,
     )

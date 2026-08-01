@@ -18,6 +18,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from datetime import datetime
+
+from app.core.temp_password_utils import generate_temp_password, temp_password_expiry
 
 from app.database import get_db
 from app import models, schemas
@@ -28,7 +31,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post(
-    "/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED,
+    "/register", response_model=schemas.UserCreatedOut, status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_roles("school_admin"))],
 )
 def register(payload: schemas.UserRegister, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -60,18 +63,31 @@ def register(payload: schemas.UserRegister, db: Session = Depends(get_db), curre
             detail=f"Unknown role '{payload.role_name}'. Valid roles must be seeded first.",
         )
 
-    # 4. Create the user with a HASHED password (never store plain text)
+    # 4. Create the user with a system-generated temporary password —
+    # never store it in plaintext, but it's returned once below for the
+    # admin to share.
+    temp_password = generate_temp_password()
+    expires_at = temp_password_expiry()
     user = models.User(
         school_id=current_user.school_id,
         role_id=role.id,
         full_name=payload.full_name,
         email=payload.email,
-        hashed_password=hash_password(payload.password),
+        hashed_password=hash_password(temp_password),
+        must_change_password=True,
+        temp_password_expires_at=expires_at,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+
+    login_path = f"/{school.slug}/login" if school.slug else "/login"
+    return schemas.UserCreatedOut(
+        user=user,
+        temporary_password=temp_password,
+        temp_password_expires_at=expires_at,
+        login_url_path=login_path,
+    )
 
 
 @router.post("/login", response_model=schemas.Token)
@@ -116,6 +132,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="ACCOUNT_DEACTIVATED: Your account access has been revoked. Please contact your School Admin.",
         )
 
+    # A temporary password that's never been changed doesn't stay valid
+    # forever — past this cutoff, login is blocked outright (not just
+    # "you'll be asked to change it after logging in"), so a forgotten
+    # temp password can't sit as a live credential indefinitely. The
+    # only way back in at this point is for whoever created the account
+    # to issue a fresh temporary password.
+    if user.must_change_password and user.temp_password_expires_at and user.temp_password_expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="TEMP_PASSWORD_EXPIRED: Your temporary password has expired. Contact whoever created your account for a new one.",
+        )
+
     token = create_access_token(
         data={"user_id": user.id, "school_id": user.school_id, "role": user.role.name}
     )
@@ -124,4 +152,31 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @router.get("/me", response_model=schemas.UserOut)
 def read_current_user(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
+@router.post("/change-password", response_model=schemas.UserOut)
+def change_password(
+    payload: schemas.ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    The one endpoint a user with a pending forced password change is
+    still allowed to hit (see PASSWORD_CHANGE_EXEMPT_PATHS in
+    core/deps.py) — this is how they actually clear that state. Also
+    works as a normal "change my password" action for anyone, not just
+    people on a temporary one.
+    """
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    current_user.must_change_password = False
+    current_user.temp_password_expires_at = None
+    db.commit()
+    db.refresh(current_user)
     return current_user
