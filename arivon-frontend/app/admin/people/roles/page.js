@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   Shield, UserPlus, Check, X, GraduationCap, Wallet, BookOpen, Users2,
   ClipboardList, BadgeCheck, Library, Bus, Car, Wrench, Crown, UserCog,
-  Search, Ban, ShieldCheck,
+  Search, Ban, ShieldCheck, RotateCcw,
 } from "lucide-react";
 import { apiRequest, isLoggedIn } from "../../../../lib/api";
+import CredentialsCard from "../../../../components/CredentialsCard";
 
 const ROLE_META = {
   principal: { label: "Principal", icon: Crown, color: "indigo", description: "Full academic and administrative oversight" },
@@ -54,17 +55,21 @@ export default function RolesPage() {
   const [user, setUser] = useState(null);
   const [staff, setStaff] = useState([]);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("create");
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState(null);
   const [creating, setCreating] = useState(false);
   const [staffSearch, setStaffSearch] = useState("");
   const [togglingId, setTogglingId] = useState(null);
+  const [resettingId, setResettingId] = useState(null);
+  // Holds { fullName, email, temporaryPassword, tempPasswordExpiresAt, loginUrl }
+  // right after creating an account OR resetting someone's password — the
+  // one and only place the plaintext temp password is ever shown, since
+  // it's never retrievable again after this.
+  const [credentialResult, setCredentialResult] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push("/"); return; }
@@ -91,19 +96,48 @@ export default function RolesPage() {
     e.preventDefault();
     if (!selectedRole) { setError("Pick a role for this account."); return; }
     setCreating(true);
-    setError(""); setSuccess("");
+    setError(""); setCredentialResult(null);
     try {
-      await apiRequest("/auth/register", {
+      const result = await apiRequest("/auth/register", {
         method: "POST",
-        body: { role_name: selectedRole, full_name: fullName, email, password },
+        body: { role_name: selectedRole, full_name: fullName, email },
       });
-      setSuccess(`${fullName} added as ${ROLE_META[selectedRole].label}.`);
-      setFullName(""); setEmail(""); setPassword(""); setSelectedRole(null);
+      setCredentialResult({
+        fullName: result.user.full_name,
+        email: result.user.email,
+        temporaryPassword: result.temporary_password,
+        tempPasswordExpiresAt: result.temp_password_expires_at,
+        loginUrl: `${window.location.origin}${result.login_url_path}`,
+        title: `${ROLE_META[selectedRole].label} account created`,
+      });
+      setFullName(""); setEmail(""); setSelectedRole(null);
       await loadStaff(user.school_id);
     } catch (err) {
       setError(err.message);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleResetPassword(staffMember) {
+    if (!confirm(`Reset ${staffMember.full_name}'s password? Their current password will stop working immediately, and they'll need the new temporary password shown here to sign in.`)) return;
+    setResettingId(staffMember.id);
+    setError(""); setCredentialResult(null);
+    try {
+      const result = await apiRequest(`/staff/${staffMember.id}/reset-password`, { method: "POST" });
+      setCredentialResult({
+        fullName: result.user.full_name,
+        email: result.user.email,
+        temporaryPassword: result.temporary_password,
+        tempPasswordExpiresAt: result.temp_password_expires_at,
+        loginUrl: `${window.location.origin}${result.login_url_path}`,
+        title: "Password reset",
+      });
+      setActiveTab("create"); // the credentials card renders in this tab
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResettingId(null);
     }
   }
 
@@ -136,7 +170,10 @@ export default function RolesPage() {
       </p>
 
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-4">{error}</p>}
-      {success && <p className="text-sm text-brand-700 bg-brand-50 border border-brand-100 rounded-lg px-3 py-2 mb-4">{success}</p>}
+
+      {credentialResult && (
+        <CredentialsCard result={credentialResult} title={credentialResult.title} onDismiss={() => setCredentialResult(null)} />
+      )}
 
       <div className="flex items-center gap-1 border-b border-slate-200 mb-6">
         {isSchoolAdmin && (
@@ -166,10 +203,9 @@ export default function RolesPage() {
           </h3>
 
           <form onSubmit={handleCreate}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
               <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" required className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Temporary password" required minLength={6} className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
             </div>
 
             <p className="text-xs font-medium text-slate-500 mb-2.5">Select a role</p>
@@ -249,16 +285,26 @@ export default function RolesPage() {
                       {meta ? meta.label : (s.role_name || "").replace(/_/g, " ")}
                     </span>
                     {canManage && (
-                      <button
-                        onClick={() => handleToggleAccess(s)}
-                        disabled={togglingId === s.id}
-                        title={s.is_active ? "Revoke access" : "Restore access"}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
-                          s.is_active ? "text-slate-400 hover:bg-rose-50 hover:text-rose-600" : "text-slate-400 hover:bg-brand-50 hover:text-brand-600"
-                        }`}
-                      >
-                        {s.is_active ? <Ban size={14} /> : <ShieldCheck size={14} />}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleResetPassword(s)}
+                          disabled={resettingId === s.id}
+                          title="Reset password"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+                        >
+                          <RotateCcw size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleToggleAccess(s)}
+                          disabled={togglingId === s.id}
+                          title={s.is_active ? "Revoke access" : "Restore access"}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                            s.is_active ? "text-slate-400 hover:bg-rose-50 hover:text-rose-600" : "text-slate-400 hover:bg-brand-50 hover:text-brand-600"
+                          }`}
+                        >
+                          {s.is_active ? <Ban size={14} /> : <ShieldCheck size={14} />}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

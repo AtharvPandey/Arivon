@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.core.security import hash_password
 from app.core.slug_utils import generate_unique_school_slug
+from app.core.temp_password_utils import generate_temp_password, temp_password_expiry
 from app.repositories.school_repository import SchoolRepository
 from app.repositories.department_repository import DepartmentRepository
 from app.repositories.organization_settings_repository import OrganizationSettingsRepository
@@ -495,12 +496,17 @@ class SchoolRegistrationService:
             if not school_admin_role:
                 raise SchoolRegistrationError("school_admin role not seeded — restart the server once")
 
+            temp_password = generate_temp_password()
+            expires_at = temp_password_expiry()
+
             admin_user = models.User(
                 school_id=school.id,
                 role_id=school_admin_role.id,
                 full_name=school.pending_admin_full_name,
                 email=school.pending_admin_email,
-                hashed_password=hash_password(payload.admin_password),
+                hashed_password=hash_password(temp_password),
+                must_change_password=True,
+                temp_password_expires_at=expires_at,
             )
             self.db.add(admin_user)
             self.db.flush()
@@ -532,6 +538,9 @@ class SchoolRegistrationService:
             "lifecycle_status": school.lifecycle_status,
             "admin_login_email": admin_user.email,
             "provisioning_steps": steps,
+            "temporary_password": temp_password,
+            "temp_password_expires_at": expires_at,
+            "login_url_path": f"/{school.slug}/login" if school.slug else "/login",
         }
 
     # ---------- Internal helpers ----------

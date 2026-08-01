@@ -187,6 +187,15 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    # Every account created BY someone else (School Admin creating staff,
+    # Platform Admin creating a School Admin) starts with a temporary
+    # password. must_change_password forces them through a mandatory
+    # change screen before they can do anything else in the app.
+    # temp_password_expires_at is the hard cutoff -- past this point the
+    # temp password stops working at all, even if never changed, so a
+    # forgotten/ignored temp password can't sit valid indefinitely.
+    must_change_password = Column(Boolean, default=False, nullable=False)
+    temp_password_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     school = relationship("School", back_populates="users")
