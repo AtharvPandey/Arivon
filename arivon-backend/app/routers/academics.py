@@ -8,10 +8,12 @@ they're on, even though they can't edit it.
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import date as date_type
 
 from app.database import get_db
 from app import models, schemas
 from app.core.deps import require_roles, get_current_user
+from app.core.teacher_scope import get_teacher_section_ids
 
 ACADEMIC_ROLES = ("academic_coordinator", "school_admin", "administrator", "principal", "super_admin")
 
@@ -283,18 +285,63 @@ def get_my_schedule(
     ]
 
 
+@router.get("/timetable/today", response_model=list[schemas.MyTodaySlot])
+def get_my_today_schedule(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Just today's slice of /timetable/mine, with the one thing a
+    full-week view doesn't need: whether attendance is already marked
+    for each period, so the dashboard can show a clear "done" vs
+    "mark now" state per period instead of a flat list."""
+    today_weekday = date_type.today().weekday()  # 0=Monday .. 6=Sunday, matches TimetableSlot
+    today_str = date_type.today().isoformat()
+
+    rows = db.query(models.TimetableSlot).join(
+        models.Section, models.TimetableSlot.section_id == models.Section.id
+    ).join(
+        models.SchoolClass, models.Section.school_class_id == models.SchoolClass.id
+    ).join(
+        models.Subject, models.TimetableSlot.subject_id == models.Subject.id
+    ).filter(
+        models.TimetableSlot.teacher_id == current_user.id,
+        models.TimetableSlot.day_of_week == today_weekday,
+    ).order_by(models.TimetableSlot.period_number).all()
+
+    result = []
+    for slot in rows:
+        already_marked = db.query(models.AttendanceRecord).filter(
+            models.AttendanceRecord.date == today_str,
+            models.AttendanceRecord.period_number == slot.period_number,
+            models.AttendanceRecord.student_id.in_(
+                db.query(models.Student.id).filter(models.Student.section_id == slot.section_id)
+            ),
+        ).first() is not None
+
+        result.append(schemas.MyTodaySlot(
+            id=slot.id,
+            period_number=slot.period_number,
+            start_time=slot.start_time,
+            end_time=slot.end_time,
+            section_id=slot.section_id,
+            section_name=slot.section.school_class.name + " - " + slot.section.name,
+            school_class_name=slot.section.school_class.name,
+            subject_name=slot.subject.name,
+            attendance_marked=already_marked,
+        ))
+    return result
+
+
 @router.get("/my-sections", response_model=list[schemas.MySection])
 def get_my_sections(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Every section this teacher has at least one timetable slot in —
-    powers the 'My Classes' list on the Teacher Workbench."""
-    section_ids = db.query(models.TimetableSlot.section_id).filter(
-        models.TimetableSlot.teacher_id == current_user.id
-    ).distinct().all()
-    section_ids = [s[0] for s in section_ids]
-
+    """Every section this teacher is assigned to — whether by teaching
+    a subject in it (a timetable slot) or being its class/homeroom
+    teacher, even for a section where they don't teach any subject
+    directly. Powers the 'My Classes' list on the Teacher Workbench."""
+    section_ids = get_teacher_section_ids(db, current_user.id)
     if not section_ids:
         return []
 
@@ -304,10 +351,20 @@ def get_my_sections(
         student_count = db.query(models.Student).filter(
             models.Student.section_id == section.id
         ).count()
+        subjects_taught = [
+            row[0] for row in
+            db.query(models.Subject.name)
+            .join(models.TimetableSlot, models.TimetableSlot.subject_id == models.Subject.id)
+            .filter(models.TimetableSlot.section_id == section.id, models.TimetableSlot.teacher_id == current_user.id)
+            .distinct()
+            .all()
+        ]
         result.append(schemas.MySection(
             section_id=section.id,
             section_name=section.school_class.name + " - " + section.name,
             school_class_name=section.school_class.name,
             student_count=student_count,
+            is_class_teacher=(section.class_teacher_id == current_user.id),
+            subjects_taught=subjects_taught,
         ))
     return result
