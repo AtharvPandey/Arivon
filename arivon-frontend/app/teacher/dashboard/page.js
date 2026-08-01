@@ -70,25 +70,28 @@ export default function TeacherDashboard() {
   const classTeacherFor = sections.find((s) => s.is_class_teacher);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-8">
-      {/* Hero — same premium slate/indigo language used across every dashboard in this app */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-2xl p-6 sm:p-8 mb-6 relative overflow-hidden">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 pb-8">
+      {/* Hero — compact on mobile so it doesn't push real content below the fold; full premium size from sm: up */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-xl sm:rounded-2xl p-4 sm:p-8 mb-4 sm:mb-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         <div className="relative">
-          <p className="text-xs font-medium text-indigo-300 mb-2 flex items-center gap-1.5">
-            <Calendar size={12} />
-            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          <p className="text-[11px] sm:text-xs font-medium text-indigo-300 mb-1 sm:mb-2 flex items-center gap-1.5">
+            <Calendar size={11} />
+            {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2">
+          <h2 className="text-lg sm:text-3xl font-display font-bold text-white mb-1 sm:mb-2">
             {greeting()}, {friendlyFirstName(user?.full_name)}
           </h2>
-          <p className="text-sm text-indigo-200 leading-relaxed max-w-xl">
+          <p className="hidden sm:block text-sm text-indigo-200 leading-relaxed max-w-xl">
             {today.length === 0
               ? "No periods scheduled for you today — a good day to catch up on syllabus or grading."
               : markedCount === today.length
               ? `All ${today.length} periods' attendance is marked for today. You're all caught up.`
               : `You have ${today.length - markedCount} of ${today.length} periods today still needing attendance.`}
+          </p>
+          <p className="sm:hidden text-xs text-indigo-200">
+            {today.length === 0 ? "No periods today" : `${markedCount}/${today.length} attendance done`}
           </p>
         </div>
       </div>
@@ -203,14 +206,14 @@ export default function TeacherDashboard() {
             <h3 className="text-sm font-semibold text-slate-800 mb-4">Quick Links</h3>
             <div className="grid grid-cols-2 gap-2.5">
               <button
-                onClick={() => router.push("/admin/academics/homework")}
+                onClick={() => router.push("/teacher/homework")}
                 className="flex flex-col items-center gap-1.5 border border-slate-100 rounded-xl p-3.5 hover:border-slate-200 transition-colors"
               >
                 <ClipboardList size={18} className="text-brand-600" />
                 <span className="text-xs font-medium text-slate-700">Homework</span>
               </button>
               <button
-                onClick={() => router.push("/admin/academics/syllabus")}
+                onClick={() => router.push("/teacher/syllabus")}
                 className="flex flex-col items-center gap-1.5 border border-slate-100 rounded-xl p-3.5 hover:border-slate-200 transition-colors"
               >
                 <BookOpen size={18} className="text-brand-600" />

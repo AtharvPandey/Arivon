@@ -18,7 +18,7 @@ const TABS = [
   { key: "home", label: "Home", icon: Home, href: "/teacher/dashboard" },
   { key: "schedule", label: "Schedule", icon: CalendarClock, href: "/teacher/schedule" },
   { key: "classes", label: "Classes", icon: Users2, href: "/teacher/classes" },
-  { key: "homework", label: "Homework", icon: ClipboardList, href: "/admin/academics/homework" },
+  { key: "homework", label: "Homework", icon: ClipboardList, href: "/teacher/homework" },
   { key: "more", label: "More", icon: MoreHorizontal, href: "/teacher/more" },
 ];
 
