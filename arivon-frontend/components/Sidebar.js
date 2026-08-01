@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Users, GraduationCap, Wallet, Megaphone,
   FileText, BarChart3, Settings, LogOut, ChevronDown, Lock, UserPlus, Bus,
 } from "lucide-react";
-import { clearToken } from "../lib/api";
+import { clearToken, resolveAssetUrl } from "../lib/api";
 import { getHomeRouteForRole } from "../lib/roleRouting";
 
 // Each group maps to a real responsibility area, not a database table.
@@ -158,7 +158,7 @@ export default function Sidebar({ user }) {
       <div className="px-5 py-6 flex items-center shrink-0">
         {user?.school_logo_url ? (
           <img
-            src={user.school_logo_url}
+            src={resolveAssetUrl(user.school_logo_url)}
             alt={user.school_name || "School logo"}
             className="w-11 h-11 rounded-lg object-contain bg-white shrink-0"
           />

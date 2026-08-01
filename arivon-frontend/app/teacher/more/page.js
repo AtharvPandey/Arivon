@@ -8,9 +8,9 @@ import { apiRequest, isLoggedIn, clearToken } from "../../../lib/api";
 const ITEMS = [
   { label: "Syllabus Tracking", icon: BookMarked, href: "/teacher/syllabus", description: "Track chapter-wise completion" },
   { label: "Examinations", icon: FileCheck2, href: "/teacher/exams", description: "Enter marks, view schedules" },
-  { label: "Leave", icon: CalendarDays, href: "/admin/people/leave", description: "Apply for leave, check balance" },
-  { label: "Notices & Messages", icon: Megaphone, href: "/admin/communication", description: "School notices and parent messages" },
-  { label: "Settings", icon: Settings, href: "/admin/settings", description: "Your account, change password" },
+  { label: "Leave", icon: CalendarDays, href: "/teacher/leave", description: "Apply for leave, check balance" },
+  { label: "Notices & Messages", icon: Megaphone, href: "/teacher/notices", description: "School notices and parent messages" },
+  { label: "Settings", icon: Settings, href: "/teacher/settings", description: "Your account, change password" },
 ];
 
 export default function TeacherMorePage() {
