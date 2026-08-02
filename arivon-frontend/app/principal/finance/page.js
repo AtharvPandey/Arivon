@@ -2,6 +2,6 @@
 
 import FinanceView from "../../../components/FinanceView";
 
-export default function AdminFinancePage() {
+export default function PrincipalFinancePage() {
   return <FinanceView />;
 }
