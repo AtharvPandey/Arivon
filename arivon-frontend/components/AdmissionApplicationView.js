@@ -44,7 +44,7 @@ const REQUIRED_DOCUMENTS = [
   { type: "photo", label: "Photo" },
 ];
 
-export default function AdmissionApplicationView({ backHref = "/admin/admissions", rolePrefix = "/admin" }) {
+export default function AdmissionApplicationView({ backHref = "/admin/admissions", studentDetailPrefix = "/admin/students" }) {
   const router = useRouter();
   const params = useParams();
   const [app, setApp] = useState(null);
@@ -337,7 +337,7 @@ export default function AdmissionApplicationView({ backHref = "/admin/admissions
               {feeSaving ? "Generating..." : "Generate Invoices"}
             </button>
             <button
-              onClick={() => router.push(`${rolePrefix === "/admin" ? "/admin/students" : "/admissions/students"}/${enrolledStudent.id}`)}
+              onClick={() => router.push(`${studentDetailPrefix}/${enrolledStudent.id}`)}
               className="text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-4 py-2"
             >
               Skip, go to student profile →
