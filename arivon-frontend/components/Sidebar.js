@@ -94,6 +94,47 @@ const NAV_GROUPS = [
   },
 ];
 
+// Maps an admin-canonical path to the equivalent path in another
+// workspace, ONLY when that workspace actually has its own dedicated
+// page built for it. This is intentionally a plain data table (not
+// code) — adding a new role's own version of a page is just adding one
+// line here, never touching component logic. If a workspace isn't
+// listed for a given admin path, the admin path is used as-is (that
+// workspace doesn't have its own version of that page yet).
+const WORKSPACE_PATH_OVERRIDES = {
+  "/admin/school/profile": { principal: "/principal/school/profile" },
+  "/admin/school/sessions": { principal: "/principal/school/sessions" },
+  "/admin/school/houses": { principal: "/principal/school/houses" },
+  "/admin/students": { principal: "/principal/students", admissions: "/admissions/students" },
+  "/admin/people/parents": { principal: "/principal/people/parents", admissions: "/admissions/people/parents" },
+  "/admin/people/teachers": { principal: "/principal/people/teachers" },
+  "/admin/people/staff": { principal: "/principal/people/staff" },
+  "/admin/people/leave": { principal: "/principal/leave" },
+  "/admin/academics": { principal: "/principal/academics" },
+  "/admin/academics/homework": { principal: "/principal/academics/homework" },
+  "/admin/academics/syllabus": { principal: "/principal/academics/syllabus" },
+  "/admin/attendance/overview": { principal: "/principal/attendance/overview" },
+  "/admin/attendance/staff-report": { principal: "/principal/attendance/staff-report" },
+  "/admin/attendance/student-register": { principal: "/principal/attendance/student-register" },
+  "/admin/academics/examinations": { principal: "/principal/academics/examinations" },
+  "/admin/admissions": { principal: "/principal/admissions", admissions: "/admissions/applications" },
+  "/admin/communication": { principal: "/principal/notices" },
+  "/admin/communication/complaints": { principal: "/principal/complaints" },
+  "/admin/transport": { principal: "/principal/transport" },
+  "/admin/documents": { principal: "/principal/documents", admissions: "/admissions/documents" },
+  "/admin/reports": { principal: "/principal/reports" },
+  "/admin/settings": { principal: "/principal/settings", admissions: "/admissions/settings" },
+};
+
+// Which workspace key a given role_name resolves to, for looking up
+// the table above. Roles not listed here stay on /admin — meaning
+// they use the shared Admin workspace until a dedicated one is built
+// for them, which is the correct fallback rather than a broken link.
+const ROLE_WORKSPACE = {
+  principal: "principal",
+  admissions_officer: "admissions",
+};
+
 const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "platform", "change-password"]);
 
 /**
@@ -121,21 +162,16 @@ export default function Sidebar({ user }) {
   const router = useRouter();
   const [openGroups, setOpenGroups] = useState({});
 
-  // Teacher gets properly scoped, mobile-matching pages for these three
-  // instead of the shared admin views (which show every class in the
-  // school, not just theirs, and aren't the premium redesigned version).
-  // Every other role keeps the exact same NAV_GROUPS hrefs unchanged.
-  const TEACHER_HREF_OVERRIDES = {
-    "/admin/academics/homework": "/teacher/homework",
-    "/admin/academics/syllabus": "/teacher/syllabus",
-    "/admin/academics/examinations": "/teacher/exams",
-  };
-
+  // Resolves any admin-canonical href to the current user's own
+  // workspace equivalent, via the WORKSPACE_PATH_OVERRIDES table above.
+  // Falls back to the original admin href if this role has no
+  // workspace of its own, or no dedicated page for this specific item
+  // yet — a graceful degradation rather than a broken link, and the
+  // single place every future role's routing gets wired in.
   function resolveHref(href) {
-    if (user?.role_name === "teacher" && TEACHER_HREF_OVERRIDES[href]) {
-      return TEACHER_HREF_OVERRIDES[href];
-    }
-    return href;
+    const workspace = ROLE_WORKSPACE[user?.role_name];
+    if (!workspace) return href;
+    return WORKSPACE_PATH_OVERRIDES[href]?.[workspace] || href;
   }
 
   function handleLogout() {
@@ -177,7 +213,7 @@ export default function Sidebar({ user }) {
           const Icon = group.icon;
 
           if (group.standalone) {
-            const href = group.label === "Dashboard" ? getHomeRouteForRole(user?.role_name) : group.href;
+            const href = group.label === "Dashboard" ? getHomeRouteForRole(user?.role_name) : resolveHref(group.href);
             const active = pathname === href;
             return (
               <button
@@ -195,7 +231,7 @@ export default function Sidebar({ user }) {
 
           const items = group.items.filter((it) => visibleFor(it.roles ?? null));
           if (items.length === 0) return null;
-          const isOpen = openGroups[group.label] ?? items.some((it) => it.href === pathname);
+          const isOpen = openGroups[group.label] ?? items.some((it) => it.href && resolveHref(it.href) === pathname);
 
           return (
             <div key={group.label}>

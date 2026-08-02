@@ -9,7 +9,7 @@ import { apiRequest, isLoggedIn } from "../lib/api";
  * underlying data (GET /staff/), just a different role_name filter.
  * Avoids building near-identical pages twice.
  */
-export default function StaffDirectory({ roleFilter, title, subtitle }) {
+export default function StaffDirectory({ roleFilter, title, subtitle, detailPrefix = "/admin/people/staff" }) {
   const router = useRouter();
   const [staff, setStaff] = useState([]);
   const [error, setError] = useState("");
@@ -65,7 +65,7 @@ export default function StaffDirectory({ roleFilter, title, subtitle }) {
               {staff.map((s) => (
                 <tr
                   key={s.id}
-                  onClick={() => router.push(`/admin/people/staff/${s.id}`)}
+                  onClick={() => router.push(`${detailPrefix}/${s.id}`)}
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900 flex items-center gap-2">
