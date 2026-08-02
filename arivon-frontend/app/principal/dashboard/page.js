@@ -172,10 +172,10 @@ export default function PrincipalDashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => router.push("/admin/people/leave")} className="text-xs font-medium bg-white/10 hover:bg-white/15 text-white rounded-lg px-3.5 py-2 flex items-center gap-1.5 backdrop-blur-sm">
+            <button onClick={() => router.push("/principal/leave")} className="text-xs font-medium bg-white/10 hover:bg-white/15 text-white rounded-lg px-3.5 py-2 flex items-center gap-1.5 backdrop-blur-sm">
               <ClipboardCheck size={13} /> Review Approvals
             </button>
-            <button onClick={() => router.push("/admin/communication")} className="text-xs font-medium bg-white/10 hover:bg-white/15 text-white rounded-lg px-3.5 py-2 flex items-center gap-1.5 backdrop-blur-sm">
+            <button onClick={() => router.push("/principal/notices")} className="text-xs font-medium bg-white/10 hover:bg-white/15 text-white rounded-lg px-3.5 py-2 flex items-center gap-1.5 backdrop-blur-sm">
               <Megaphone size={13} /> Publish Notice
             </button>
           </div>
@@ -190,28 +190,28 @@ export default function PrincipalDashboard() {
           value={`${studentAttendancePct}%`}
           sublabel={`${summary?.students_present || 0} of ${summary?.total_students || 0}`}
           trend={summary?.total_students > 0 ? attendanceTrend : null}
-          onClick={() => router.push("/admin/attendance/overview")}
+          onClick={() => router.push("/principal/attendance/overview")}
         />
         <KpiCard
           icon={Users} iconBg="bg-indigo-50" iconColor="text-indigo-700"
           label="Staff On Duty"
           value={`${staffAttendancePct}%`}
           sublabel={`${summary?.staff_present || 0} of ${summary?.total_staff || 0}`}
-          onClick={() => router.push("/admin/attendance/staff-report")}
+          onClick={() => router.push("/principal/attendance/staff-report")}
         />
         <KpiCard
           icon={ClipboardCheck} iconBg="bg-amber-50" iconColor="text-amber-700"
           label="Pending Approvals"
           value={pendingLeaves.length}
           sublabel="Leave requests"
-          onClick={() => router.push("/admin/people/leave")}
+          onClick={() => router.push("/principal/leave")}
         />
         <KpiCard
           icon={MessageSquareWarning} iconBg="bg-rose-50" iconColor="text-rose-700"
           label="Open Complaints"
           value={openComplaints.length}
           sublabel="Parent grievances"
-          onClick={() => router.push("/admin/communication/complaints")}
+          onClick={() => router.push("/principal/complaints")}
         />
       </div>
 
@@ -223,7 +223,7 @@ export default function PrincipalDashboard() {
             title="Leave Approvals"
             subtitle="Staff leave requests awaiting your decision"
             actionLabel={pendingLeaves.length > 4 ? `View all ${pendingLeaves.length}` : null}
-            onAction={() => router.push("/admin/people/leave")}
+            onAction={() => router.push("/principal/leave")}
           />
           {pendingLeaves.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-center">
@@ -238,7 +238,7 @@ export default function PrincipalDashboard() {
               {pendingLeaves.slice(0, 4).map((leave) => (
                 <button
                   key={leave.id}
-                  onClick={() => router.push("/admin/people/leave")}
+                  onClick={() => router.push("/principal/leave")}
                   className="w-full text-left py-3 flex items-center gap-3 hover:bg-slate-50 -mx-2 px-2 rounded-lg transition-colors"
                 >
                   <div className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-semibold shrink-0">
@@ -267,7 +267,7 @@ export default function PrincipalDashboard() {
             icon={Bell} iconColor="text-indigo-600"
             title="Recent Notices"
             actionLabel="All"
-            onAction={() => router.push("/admin/communication")}
+            onAction={() => router.push("/principal/notices")}
           />
           {recentAnnouncements.length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-6">No notices published yet</p>
@@ -297,7 +297,7 @@ export default function PrincipalDashboard() {
           title="Class Strength Overview"
           subtitle={`${strengthTotal} students across ${strength.length} sections · ${strengthBoys} boys, ${strengthGirls} girls`}
           actionLabel="Full report"
-          onAction={() => router.push("/admin/reports")}
+          onAction={() => router.push("/principal/reports")}
         />
         {strength.length === 0 ? (
           <p className="text-xs text-slate-500 text-center py-6">No sections configured yet</p>
@@ -323,7 +323,7 @@ export default function PrincipalDashboard() {
                 return (
                   <button
                     key={className}
-                    onClick={() => router.push(`/admin/school/classes/${classSlug}`)}
+                    onClick={() => router.push(`/principal/school/classes/${classSlug}`)}
                     title={`${className}: ${classTotal} students across ${sections.length} sections (${classBoys} boys, ${classGirls} girls)`}
                     className="text-left bg-gradient-to-br from-slate-50 to-white border border-slate-200/70 hover:border-violet-300 hover:shadow-sm rounded-xl p-3 transition-all group"
                   >
@@ -355,7 +355,7 @@ export default function PrincipalDashboard() {
             title="Academic Performance"
             subtitle="Recent examinations to review"
             actionLabel="All exams"
-            onAction={() => router.push("/admin/academics/examinations")}
+            onAction={() => router.push("/principal/academics/examinations")}
           />
           {recentExams.length === 0 ? (
             <p className="text-xs text-slate-500 text-center py-6">No examinations recorded yet</p>
@@ -364,7 +364,7 @@ export default function PrincipalDashboard() {
               {recentExams.map((exam) => (
                 <button
                   key={exam.id}
-                  onClick={() => router.push(`/admin/academics/examinations/${exam.id}`)}
+                  onClick={() => router.push(`/principal/academics/examinations/${exam.id}`)}
                   className="w-full text-left p-3 rounded-lg border border-slate-100 hover:border-teal-200 hover:bg-teal-50/30 transition-colors flex items-center justify-between"
                 >
                   <div className="min-w-0">
@@ -384,7 +384,7 @@ export default function PrincipalDashboard() {
             title="Open Complaints"
             subtitle="Parent grievances awaiting resolution"
             actionLabel="All"
-            onAction={() => router.push("/admin/communication/complaints")}
+            onAction={() => router.push("/principal/complaints")}
           />
           {openComplaints.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-center">
@@ -399,7 +399,7 @@ export default function PrincipalDashboard() {
               {openComplaints.slice(0, 4).map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => router.push("/admin/communication/complaints")}
+                  onClick={() => router.push("/principal/complaints")}
                   className="w-full text-left p-3 rounded-lg border border-slate-100 hover:border-rose-200 hover:bg-rose-50/30 transition-colors"
                 >
                   <p className="text-sm font-medium text-slate-800 line-clamp-1">{c.subject}</p>
