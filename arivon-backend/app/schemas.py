@@ -206,6 +206,7 @@ class UserOut(BaseModel):
     role_name: str | None = None
     school_name: str | None = None
     school_logo_url: str | None = None
+    school_banner_url: str | None = None
     school_primary_color: str | None = None
     school_secondary_color: str | None = None
     must_change_password: bool = False
