@@ -30,6 +30,17 @@ def get_school(school_id: int, db: Session = Depends(get_db)):
     return db.query(models.School).filter(models.School.id == school_id).first()
 
 
+@router.get("/{school_id}/infrastructure", response_model=schemas.SchoolInfrastructureOut | None)
+def get_school_infrastructure(school_id: int, db: Session = Depends(get_db)):
+    """Powers the Campus page — a read-only physical-capacity snapshot
+    open to any authenticated user, not just admin-tier roles (everyone
+    at the school benefits from knowing what facilities exist). Returns
+    None if the school hasn't filled this in yet, which is expected."""
+    return db.query(models.SchoolInfrastructure).filter(
+        models.SchoolInfrastructure.school_id == school_id
+    ).first()
+
+
 @router.patch(
     "/{school_id}",
     response_model=schemas.SchoolOut,
