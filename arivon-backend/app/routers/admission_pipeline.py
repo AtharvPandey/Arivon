@@ -241,3 +241,236 @@ def list_eligible_staff(school_id: int, db: Session = Depends(get_db)):
         models.User.school_id == school_id, models.Role.name != "student", models.Role.name != "parent",
     ).all()
     return [schemas.StaffPickerOut(id=s.id, full_name=s.full_name, role_name=s.role_name) for s in staff]
+
+
+# ---------------------------------------------------------------------
+# Applications module - everyone past the early funnel (submitted
+# through confirmed), plus every action along the way: verification,
+# test, interview, decision, fee, confirm.
+# ---------------------------------------------------------------------
+
+@router.get(
+    "/applications", response_model=list[schemas.PipelineApplicationOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_applications(school_id: int, stage: str | None = None, db: Session = Depends(get_db)):
+    query = db.query(models.AdmissionApplication).filter(
+        models.AdmissionApplication.school_id == school_id,
+        models.AdmissionApplication.stage.notin_(["lead", "inquiry", "counseling"]),
+    )
+    if stage:
+        query = query.filter(models.AdmissionApplication.stage == stage)
+    applications = query.order_by(models.AdmissionApplication.updated_at.desc()).all()
+    return [_to_pipeline_out(db, a) for a in applications]
+
+
+@router.get(
+    "/settings", response_model=schemas.AdmissionSettingsOut,
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def get_admission_settings(school_id: int, db: Session = Depends(get_db)):
+    settings = engine.get_settings(db, school_id)
+    return schemas.AdmissionSettingsOut(
+        school_id=settings.school_id, admission_number_format=settings.admission_number_format,
+        enable_entrance_test=settings.enable_entrance_test, enable_interview=settings.enable_interview,
+        required_documents=json.loads(settings.required_documents_json), classes_open=json.loads(settings.classes_open_json),
+        application_fee=settings.application_fee,
+    )
+
+
+@router.patch(
+    "/settings", response_model=schemas.AdmissionSettingsOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def update_admission_settings(school_id: int, payload: schemas.AdmissionSettingsUpdate, db: Session = Depends(get_db)):
+    settings = engine.get_settings(db, school_id)
+    data = payload.model_dump(exclude_unset=True)
+    if "required_documents" in data:
+        settings.required_documents_json = json.dumps(data.pop("required_documents"))
+    if "classes_open" in data:
+        settings.classes_open_json = json.dumps(data.pop("classes_open"))
+    for key, value in data.items():
+        setattr(settings, key, value)
+    db.commit()
+    db.refresh(settings)
+    return schemas.AdmissionSettingsOut(
+        school_id=settings.school_id, admission_number_format=settings.admission_number_format,
+        enable_entrance_test=settings.enable_entrance_test, enable_interview=settings.enable_interview,
+        required_documents=json.loads(settings.required_documents_json), classes_open=json.loads(settings.classes_open_json),
+        application_fee=settings.application_fee,
+    )
+
+
+@router.post(
+    "/applications/{application_id}/start-verification", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def start_document_verification(application_id: int, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    application = engine.start_document_verification(db, application)
+    return _to_pipeline_out(db, application)
+
+
+@router.get(
+    "/applications/{application_id}/documents", response_model=list[schemas.DocumentSubmissionOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_documents(application_id: int, db: Session = Depends(get_db)):
+    _get_application_or_404(db, application_id)
+    docs = db.query(models.DocumentSubmission).filter(models.DocumentSubmission.application_id == application_id).all()
+    result = []
+    for d in docs:
+        verifier = db.query(models.User).filter(models.User.id == d.verified_by_user_id).first() if d.verified_by_user_id else None
+        out = schemas.DocumentSubmissionOut.model_validate(d)
+        out.verified_by_name = verifier.full_name if verifier else None
+        result.append(out)
+    return result
+
+
+@router.patch(
+    "/documents/{document_id}", response_model=schemas.DocumentSubmissionOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def verify_document(document_id: int, payload: schemas.VerifyDocumentRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    submission = db.query(models.DocumentSubmission).filter(models.DocumentSubmission.id == document_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Document not found")
+    submission = engine.verify_document(db, submission, status=payload.status, remarks=payload.remarks, verified_by_user_id=current_user.id)
+    out = schemas.DocumentSubmissionOut.model_validate(submission)
+    out.verified_by_name = current_user.full_name
+    return out
+
+
+@router.post(
+    "/applications/{application_id}/advance-past-verification", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def advance_past_verification(application_id: int, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    application = engine.advance_past_verification(db, application)
+    return _to_pipeline_out(db, application)
+
+
+@router.post(
+    "/applications/{application_id}/test-result", response_model=schemas.TestResultOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def record_test_result(application_id: int, payload: schemas.TestResultCreate, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    result = engine.record_test_result(
+        db, application, subjects=[s.model_dump() for s in payload.subjects],
+        overall_score=payload.overall_score, recommendation=payload.recommendation,
+    )
+    return schemas.TestResultOut(
+        id=result.id, application_id=result.application_id, conducted_at=result.conducted_at,
+        subjects=json.loads(result.subjects_json), overall_score=result.overall_score, recommendation=result.recommendation,
+    )
+
+
+@router.get(
+    "/applications/{application_id}/interviews", response_model=list[schemas.InterviewOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_interviews(application_id: int, db: Session = Depends(get_db)):
+    _get_application_or_404(db, application_id)
+    interviews = db.query(models.Interview).filter(models.Interview.application_id == application_id).order_by(models.Interview.scheduled_at.desc()).all()
+    result = []
+    for iv in interviews:
+        panel_ids = json.loads(iv.panel_user_ids_json)
+        panel_names = [u.full_name for u in db.query(models.User).filter(models.User.id.in_(panel_ids)).all()] if panel_ids else []
+        result.append(schemas.InterviewOut(
+            id=iv.id, application_id=iv.application_id, scheduled_at=iv.scheduled_at,
+            panel_user_ids=panel_ids, panel_names=panel_names, remarks=iv.remarks, recommendation=iv.recommendation,
+        ))
+    return result
+
+
+@router.post(
+    "/applications/{application_id}/interviews", response_model=schemas.InterviewOut, status_code=201,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def schedule_interview(application_id: int, payload: schemas.InterviewCreate, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    interview = engine.schedule_interview(db, application, scheduled_at=payload.scheduled_at, panel_user_ids=payload.panel_user_ids)
+    panel_names = [u.full_name for u in db.query(models.User).filter(models.User.id.in_(payload.panel_user_ids)).all()]
+    return schemas.InterviewOut(
+        id=interview.id, application_id=interview.application_id, scheduled_at=interview.scheduled_at,
+        panel_user_ids=payload.panel_user_ids, panel_names=panel_names, remarks=None, recommendation=None,
+    )
+
+
+@router.patch(
+    "/interviews/{interview_id}", response_model=schemas.InterviewOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def record_interview_outcome(interview_id: int, payload: schemas.InterviewOutcomeUpdate, db: Session = Depends(get_db)):
+    interview = db.query(models.Interview).filter(models.Interview.id == interview_id).first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    interview = engine.record_interview_outcome(db, interview, remarks=payload.remarks, recommendation=payload.recommendation)
+    panel_ids = json.loads(interview.panel_user_ids_json)
+    panel_names = [u.full_name for u in db.query(models.User).filter(models.User.id.in_(panel_ids)).all()] if panel_ids else []
+    return schemas.InterviewOut(
+        id=interview.id, application_id=interview.application_id, scheduled_at=interview.scheduled_at,
+        panel_user_ids=panel_ids, panel_names=panel_names, remarks=interview.remarks, recommendation=interview.recommendation,
+    )
+
+
+@router.post(
+    "/applications/{application_id}/advance-past-interview", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def advance_past_interview(application_id: int, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    application = engine.advance_past_interview(db, application)
+    return _to_pipeline_out(db, application)
+
+
+@router.post(
+    "/applications/{application_id}/decision", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles("principal", "vice_principal", "school_admin", "administrator", "super_admin"))],
+)
+def make_decision(application_id: int, payload: schemas.DecisionRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """
+    Deliberately a NARROWER role list than the rest of this router - an
+    actual accept/reject/waitlist decision is a real call with
+    consequences for the school, not routine data entry, so it needs
+    Principal/VP or a School-Admin-tier role, not just Admissions
+    Officer.
+    """
+    application = _get_application_or_404(db, application_id)
+    application = engine.make_decision(
+        db, application, decision=payload.decision, reason=payload.reason,
+        decided_by_user_id=current_user.id, offer_valid_until=payload.offer_valid_until,
+    )
+    return _to_pipeline_out(db, application)
+
+
+@router.get(
+    "/applications/{application_id}/fee-invoices", response_model=list[schemas.PipelineFeeInvoiceOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_fee_invoices(application_id: int, db: Session = Depends(get_db)):
+    _get_application_or_404(db, application_id)
+    invoices = db.query(models.StudentFeeInvoice).filter(models.StudentFeeInvoice.admission_application_id == application_id).all()
+    return invoices
+
+
+@router.post(
+    "/applications/{application_id}/fee-invoices", response_model=list[schemas.PipelineFeeInvoiceOut], status_code=201,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def generate_fee_invoices(application_id: int, payload: schemas.GenerateFeeInvoicesRequest, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    invoices = engine.generate_admission_fee_invoices(db, application, fee_items=[item.model_dump() for item in payload.items])
+    return invoices
+
+
+@router.post(
+    "/applications/{application_id}/confirm", response_model=schemas.StudentOut, status_code=201,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def confirm_admission(application_id: int, payload: schemas.ConfirmAdmissionRequest, db: Session = Depends(get_db)):
+    application = _get_application_or_404(db, application_id)
+    student = engine.confirm_admission(db, application, section_id=payload.section_id)
+    return student

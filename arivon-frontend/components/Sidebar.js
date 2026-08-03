@@ -62,7 +62,7 @@ const NAV_GROUPS = [
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "vice_principal", "academic_coordinator", "super_admin"],
   },
   {
-    label: "Admissions", icon: UserPlus, href: "/admin/admissions", standalone: true,
+    label: "Applications", icon: UserPlus, href: "/admin/admissions", standalone: true,
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
   {

@@ -3003,3 +3003,128 @@ class StaffPickerOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =========================================================================
+# Admission Pipeline continued — Applications module (Verification,
+# Test, Interview, Decision, Fee, Confirm).
+# =========================================================================
+
+class DocumentSubmissionOut(BaseModel):
+    id: int
+    application_id: int
+    document_type: str
+    file_url: str | None
+    status: str
+    remarks: str | None
+    verified_by_name: str | None = None
+    verified_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class VerifyDocumentRequest(BaseModel):
+    status: str  # verified, rejected, needs_reupload, pending
+    remarks: str | None = None
+
+
+class TestSubjectScore(BaseModel):
+    subject: str
+    marks: int
+    max_marks: int
+
+
+class TestResultCreate(BaseModel):
+    subjects: list[TestSubjectScore]
+    overall_score: int
+    recommendation: str  # recommended, not_recommended
+
+
+class TestResultOut(BaseModel):
+    id: int
+    application_id: int
+    conducted_at: datetime | None
+    subjects: list[TestSubjectScore]
+    overall_score: int | None
+    recommendation: str | None
+
+    class Config:
+        from_attributes = True
+
+
+class InterviewCreate(BaseModel):
+    scheduled_at: datetime
+    panel_user_ids: list[int]
+
+
+class InterviewOutcomeUpdate(BaseModel):
+    remarks: str | None = None
+    recommendation: str  # recommended, not_recommended
+
+
+class InterviewOut(BaseModel):
+    id: int
+    application_id: int
+    scheduled_at: datetime
+    panel_user_ids: list[int]
+    panel_names: list[str] = []
+    remarks: str | None
+    recommendation: str | None
+
+    class Config:
+        from_attributes = True
+
+
+class DecisionRequest(BaseModel):
+    decision: str  # approved, waitlisted, rejected
+    reason: str | None = None
+    offer_valid_until: date | None = None
+
+
+class FeeInvoiceItem(BaseModel):
+    description: str
+    amount: int
+    due_date: date
+
+
+class GenerateFeeInvoicesRequest(BaseModel):
+    items: list[FeeInvoiceItem]
+
+
+class PipelineFeeInvoiceOut(BaseModel):
+    id: int
+    description: str | None
+    amount_due: int
+    amount_paid: int
+    status: str
+    due_date: date
+
+    class Config:
+        from_attributes = True
+
+
+class ConfirmAdmissionRequest(BaseModel):
+    section_id: int | None = None
+
+
+class AdmissionSettingsOut(BaseModel):
+    school_id: int
+    admission_number_format: str
+    enable_entrance_test: bool
+    enable_interview: bool
+    required_documents: list[str]
+    classes_open: list[int]
+    application_fee: int
+
+    class Config:
+        from_attributes = True
+
+
+class AdmissionSettingsUpdate(BaseModel):
+    admission_number_format: str | None = None
+    enable_entrance_test: bool | None = None
+    enable_interview: bool | None = None
+    required_documents: list[str] | None = None
+    classes_open: list[int] | None = None
+    application_fee: int | None = None
