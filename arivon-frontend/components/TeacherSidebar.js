@@ -48,24 +48,33 @@ export default function TeacherSidebar({ user }) {
 
   return (
     <aside className="w-64 bg-navy-900 text-white flex flex-col shrink-0 h-screen">
-      <div className="px-5 py-6 flex items-center gap-3 shrink-0 border-b border-white/5">
-        {user?.school_logo_url ? (
+      <div className="shrink-0 border-b border-white/5">
+        {user?.school_banner_url && (
           <img
-            src={resolveAssetUrl(user.school_logo_url)}
-            alt={user.school_name || "School logo"}
-            className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
+            src={resolveAssetUrl(user.school_banner_url)}
+            alt={user.school_name || "School banner"}
+            className="w-full h-16 object-cover"
           />
-        ) : (
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: user?.school_primary_color || "#6D5BFF" }}
-          >
-            <GraduationCap size={18} className="text-white" />
-          </div>
         )}
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-400">Teacher Portal</p>
-          <p className="text-sm font-semibold text-white truncate">{user?.school_name || "Arivon"}</p>
+        <div className="px-5 py-4 flex items-center gap-3">
+          {user?.school_logo_url ? (
+            <img
+              src={resolveAssetUrl(user.school_logo_url)}
+              alt={user.school_name || "School logo"}
+              className="w-10 h-10 rounded-lg object-contain bg-white shrink-0"
+            />
+          ) : (
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: user?.school_primary_color || "#6D5BFF" }}
+            >
+              <GraduationCap size={18} className="text-white" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-slate-400">Teacher Portal</p>
+            <p className="text-sm font-semibold text-white truncate">{user?.school_name || "Arivon"}</p>
+          </div>
         </div>
       </div>
 

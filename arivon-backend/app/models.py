@@ -214,6 +214,10 @@ class User(Base):
         return self.school.logo_url if self.school else None
 
     @property
+    def school_banner_url(self) -> str | None:
+        return self.school.banner_url if self.school else None
+
+    @property
     def school_primary_color(self) -> str | None:
         return self.school.primary_color if self.school else None
 

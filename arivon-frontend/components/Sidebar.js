@@ -194,19 +194,29 @@ export default function Sidebar({ user }) {
 
   return (
     <aside className="w-64 bg-navy-900 text-white flex flex-col shrink-0 h-screen">
-      <div className="px-5 py-6 flex items-center shrink-0">
-        {user?.school_logo_url ? (
+      <div className="shrink-0">
+        {user?.school_banner_url ? (
           <img
-            src={resolveAssetUrl(user.school_logo_url)}
-            alt={user.school_name || "School logo"}
-            className="w-11 h-11 rounded-lg object-contain bg-white shrink-0"
+            src={resolveAssetUrl(user.school_banner_url)}
+            alt={user.school_name || "School banner"}
+            className="w-full h-20 object-cover"
           />
+        ) : user?.school_logo_url ? (
+          <div className="px-5 py-6 flex items-center">
+            <img
+              src={resolveAssetUrl(user.school_logo_url)}
+              alt={user.school_name || "School logo"}
+              className="w-11 h-11 rounded-lg object-contain bg-white shrink-0"
+            />
+          </div>
         ) : (
-          <div
-            className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: user?.school_primary_color || "#6D5BFF" }}
-          >
-            <LayoutDashboard size={20} className="text-white" />
+          <div className="px-5 py-6 flex items-center">
+            <div
+              className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0"
+              style={{ backgroundColor: user?.school_primary_color || "#6D5BFF" }}
+            >
+              <LayoutDashboard size={20} className="text-white" />
+            </div>
           </div>
         )}
       </div>
