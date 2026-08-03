@@ -24,7 +24,7 @@ from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user, require_roles
 
-FINANCE_ROLES = ("accountant", "school_admin")
+FINANCE_ROLES = ("accountant", "senior_accountant", "finance_manager", "school_admin", "administrator", "super_admin")
 VALID_PAYMENT_METHODS = {"cash", "upi", "bank_transfer", "cheque", "dd"}
 
 router = APIRouter(
@@ -59,6 +59,23 @@ def _recompute_invoice_status(invoice: models.StudentFeeInvoice, today: date_typ
         invoice.status = "pending"
 
 
+def _category_name(db: Session, structure: models.FeeStructure | None) -> str:
+    if not structure:
+        return "—"
+    category = db.query(models.FeeCategory).filter(models.FeeCategory.id == structure.fee_category_id).first()
+    return category.name if category else "—"
+
+
+def _structure_to_out(db: Session, structure: models.FeeStructure) -> schemas.FeeStructureOut:
+    name = _category_name(db, structure)
+    return schemas.FeeStructureOut(
+        id=structure.id, school_id=structure.school_id, academic_year_id=structure.academic_year_id,
+        school_class_id=structure.school_class_id, fee_category_id=structure.fee_category_id,
+        fee_category_name=name, fee_type=name, amount=structure.amount, frequency=structure.frequency,
+        late_fee_amount=structure.late_fee_amount, late_fee_grace_days=structure.late_fee_grace_days,
+    )
+
+
 def _invoice_to_out(db: Session, invoice: models.StudentFeeInvoice) -> schemas.InvoiceOut:
     student = db.query(models.Student).filter(models.Student.id == invoice.student_id).first()
     structure = db.query(models.FeeStructure).filter(models.FeeStructure.id == invoice.fee_structure_id).first()
@@ -66,7 +83,7 @@ def _invoice_to_out(db: Session, invoice: models.StudentFeeInvoice) -> schemas.I
     effective_total = invoice.amount_due + late_fee
     return schemas.InvoiceOut(
         id=invoice.id, student_id=invoice.student_id, student_name=student.full_name if student else "—",
-        fee_structure_id=invoice.fee_structure_id, fee_type=structure.fee_type if structure else "—",
+        fee_structure_id=invoice.fee_structure_id, fee_type=_category_name(db, structure),
         billing_period=invoice.billing_period, due_date=invoice.due_date, amount_due=invoice.amount_due,
         amount_paid=invoice.amount_paid, status=invoice.status, concession_id=invoice.concession_id,
         concession_amount=invoice.concession_amount, late_fee_amount=late_fee,
@@ -102,11 +119,28 @@ def create_fee_structure(payload: schemas.FeeStructureCreate, db: Session = Depe
     if not school:
         raise HTTPException(status_code=404, detail="School not found")
 
-    structure = models.FeeStructure(**payload.model_dump())
+    data = payload.model_dump()
+    fee_type_input = data.pop("fee_type", None)
+    category_id = data.pop("fee_category_id", None)
+
+    if not category_id:
+        if not fee_type_input:
+            raise HTTPException(status_code=400, detail="Provide either fee_category_id or fee_type.")
+        category = db.query(models.FeeCategory).filter(
+            models.FeeCategory.school_id == payload.school_id, models.FeeCategory.name == fee_type_input,
+        ).first()
+        if not category:
+            category = models.FeeCategory(school_id=payload.school_id, name=fee_type_input)
+            db.add(category)
+            db.commit()
+            db.refresh(category)
+        category_id = category.id
+
+    structure = models.FeeStructure(**data, fee_category_id=category_id)
     db.add(structure)
     db.commit()
     db.refresh(structure)
-    return structure
+    return _structure_to_out(db, structure)
 
 
 @router.get("/structures", response_model=list[schemas.FeeStructureOut])
@@ -116,7 +150,7 @@ def list_fee_structures(school_id: int, school_class_id: int | None = None, db: 
         query = query.filter(
             (models.FeeStructure.school_class_id == school_class_id) | (models.FeeStructure.school_class_id.is_(None))
         )
-    return query.all()
+    return [_structure_to_out(db, s) for s in query.all()]
 
 
 # ---------- Fee Concessions ----------
@@ -340,7 +374,7 @@ def generate_receipt(payment_id: int, db: Session = Depends(get_db), current_use
     # confirmation the moment payment is recorded, not a placeholder.
     message = (
         f"Dear Parent, we've received your payment of Rs.{payment.amount} for {student.full_name} "
-        f"({structure.fee_type if structure else 'Fee'}, {invoice.billing_period}). "
+        f"({_category_name(db, structure) if structure else 'Fee'}, {invoice.billing_period}). "
         f"Receipt No: {payment.receipt_number}. Thank you."
     )
     send_whatsapp_message(student.guardian_phone, message)
@@ -560,7 +594,7 @@ def get_outstanding_by_fee_type(school_id: int, db: Session = Depends(get_db)):
         total_billed = sum(inv.amount_due for inv in invoices)
         total_collected = sum(inv.amount_paid for inv in invoices)
         results.append(schemas.OutstandingByFeeTypeItem(
-            fee_type=structure.fee_type, total_billed=total_billed, total_collected=total_collected,
+            fee_type=_category_name(db, structure), total_billed=total_billed, total_collected=total_collected,
             total_outstanding=max(total_billed - total_collected, 0),
         ))
     return results
@@ -579,7 +613,7 @@ def get_payment_history(student_id: int, db: Session = Depends(get_db)):
         invoice = next((inv for inv in invoices if inv.id == p.invoice_id), None)
         structure = db.query(models.FeeStructure).filter(models.FeeStructure.id == invoice.fee_structure_id).first() if invoice else None
         results.append(schemas.PaymentHistoryItem(
-            payment_id=p.id, receipt_number=p.receipt_number, fee_type=structure.fee_type if structure else "—",
+            payment_id=p.id, receipt_number=p.receipt_number, fee_type=_category_name(db, structure),
             billing_period=invoice.billing_period if invoice else "—", amount=p.amount,
             payment_date=p.payment_date, payment_method=p.payment_method,
         ))

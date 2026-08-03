@@ -422,6 +422,34 @@ class StaffAttendanceRecord(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class FeeCategory(Base):
+    """
+    A managed, normalized fee type ("Tuition Fee", "Transport Fee",
+    "Registration Fee") - replaces what used to be a free-text string
+    on FeeStructure. Per-school (not global) since schools can add
+    their own categories beyond the seeded defaults, but every school
+    gets the same starting set for consistent reporting across the
+    platform.
+    """
+    __tablename__ = "fee_categories"
+    __table_args__ = (
+        UniqueConstraint("school_id", "name", name="uq_school_fee_category_name"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
+    name = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+FEE_CATEGORY_DEFAULTS = [
+    "Registration Fee", "Admission Fee", "Tuition Fee", "Annual Fee", "Examination Fee",
+    "Transport Fee", "Hostel Fee", "Books", "Uniform", "Activity Fee", "Lab Fee",
+    "Security Deposit", "Miscellaneous",
+]
+
+
 class FeeStructure(Base):
     """
     A fee definition for a class, e.g. "Grade 5 Tuition Fee, ₹5000/month".
@@ -437,7 +465,11 @@ class FeeStructure(Base):
     school_class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True)  # null = applies to all classes
     bus_route_id = Column(Integer, ForeignKey("bus_routes.id"), nullable=True)  # set only for fee_type="Transport" fees that vary by route distance; null = a flat transport fee or a non-transport fee type
 
-    fee_type = Column(String, nullable=False)  # "Tuition", "Transport", "Lab", etc.
+    fee_category_id = Column(Integer, ForeignKey("fee_categories.id"), nullable=False)
+    # Replaces the old free-text fee_type string - every structure now
+    # references a real, managed FeeCategory, giving consistent
+    # reporting/analytics across schools instead of ad-hoc spelling
+    # ("Tuition" vs "tuition fee" vs "Tuition Fees").
     amount = Column(Integer, nullable=False)  # stored in whole rupees, not paise
     frequency = Column(String, nullable=False)  # "monthly", "quarterly", "annual", "one_time"
 
@@ -449,6 +481,8 @@ class FeeStructure(Base):
     late_fee_grace_days = Column(Integer, nullable=False, default=0)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    fee_category = relationship("FeeCategory")
 
 
 class StudentFeeInvoice(Base):
@@ -511,6 +545,47 @@ class FeePayment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     invoice = relationship("StudentFeeInvoice", back_populates="payments")
+
+
+class Refund(Base):
+    """
+    Staff-initiated refund workflow — there is no parent-facing portal
+    anywhere in this system, so a refund is always recorded on a
+    family's behalf by Finance staff, never submitted directly by a
+    parent. Tracked against the specific FeePayment being reversed
+    (not just the invoice), since that's the actual money movement.
+
+    Lifecycle: requested -> under_review -> approved -> processed
+                                          -> rejected (terminal)
+    Every transition also publishes a domain event (see
+    app/core/events.py) for a durable audit trail independent of this
+    table's own history.
+    """
+    __tablename__ = "refunds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
+    payment_id = Column(Integer, ForeignKey("fee_payments.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+
+    amount = Column(Integer, nullable=False)
+    reason = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="requested")  # requested, under_review, approved, rejected, processed
+
+    requested_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    requested_at = Column(DateTime, default=datetime.utcnow)
+
+    reviewed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    review_notes = Column(String, nullable=True)
+
+    processed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    processed_at = Column(DateTime, nullable=True)
+    refund_method = Column(String, nullable=True)  # cash, upi, bank_transfer, cheque - set only at processing
+    receipt_number = Column(String, nullable=True, unique=True)  # set only at processing
+
+    payment = relationship("FeePayment")
+    student = relationship("Student")
 
 
 class House(Base):
