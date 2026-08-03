@@ -2891,3 +2891,115 @@ class HolidayOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =========================================================================
+# Admission Pipeline (Phase 3) — the real CRM-grade workflow. Distinct
+# from the older Admission* schemas above, which only exist now to keep
+# app/routers/admissions.py (a temporary compatibility stub) type-checking
+# correctly until it's deleted.
+# =========================================================================
+
+class LeadCreate(BaseModel):
+    school_id: int
+    academic_year_id: int
+    source: str  # walk_in, website, referral, advertisement, call, other
+    student_name: str
+    parent_name: str
+    phone: str
+    email: str | None = None
+
+
+class InquiryAdvanceRequest(BaseModel):
+    applying_for_class_id: int
+    date_of_birth: date
+    gender: str | None = None
+    current_school: str | None = None
+    address: str | None = None
+
+
+class AssignCounselorRequest(BaseModel):
+    counselor_user_id: int
+
+
+class CounselingSessionCreate(BaseModel):
+    counselor_user_id: int
+    scheduled_at: datetime
+
+
+class CounselingOutcomeUpdate(BaseModel):
+    discussion_notes: str | None = None
+    follow_up_date: date | None = None
+    outcome: str  # interested, needs_follow_up, not_interested
+
+
+class SubmitApplicationRequest(BaseModel):
+    # Either link an existing guardian, or provide enough to create one
+    # inline - the Inquiries screen shouldn't force a detour to a
+    # separate "create guardian first" step.
+    guardian_id: int | None = None
+    guardian_full_name: str | None = None
+    guardian_phone: str | None = None
+    guardian_email: str | None = None
+    transport_required: bool = False
+    hostel_required: bool = False
+    emergency_contact: str | None = None
+    sibling_notes: str | None = None
+
+
+class MarkLostRequest(BaseModel):
+    reason: str
+
+
+class CounselingSessionOut(BaseModel):
+    id: int
+    application_id: int
+    counselor_user_id: int
+    counselor_name: str | None = None
+    scheduled_at: datetime
+    discussion_notes: str | None
+    follow_up_date: date | None
+    outcome: str | None
+
+    class Config:
+        from_attributes = True
+
+
+class PipelineApplicationOut(BaseModel):
+    id: int
+    school_id: int
+    academic_year_id: int
+    stage: str
+    source: str
+    student_name: str
+    parent_name: str
+    phone: str
+    email: str | None
+    applying_for_class_id: int | None
+    applying_for_class_name: str | None = None
+    date_of_birth: date | None
+    gender: str | None
+    current_school: str | None
+    address: str | None
+    assigned_counselor_user_id: int | None
+    assigned_counselor_name: str | None = None
+    guardian_id: int | None
+    decision: str | None
+    decision_reason: str | None
+    lost_reason: str | None
+    converted_student_id: int | None
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StaffPickerOut(BaseModel):
+    id: int
+    full_name: str
+    role_name: str | None
+
+    class Config:
+        from_attributes = True

@@ -316,6 +316,12 @@ class Student(Base):
     house_id = Column(Integer, ForeignKey("houses.id"), nullable=True)
 
     admission_number = Column(String, nullable=False)
+    # Permanent, generated once at admission confirmation, never
+    # changes - the student's identifier across the whole ERP.
+    roll_number = Column(String, nullable=True)
+    # Class/section-specific, assigned once placed into a section, can
+    # be reassigned every academic year per school policy - genuinely
+    # independent from admission_number, not a duplicate of it.
     full_name = Column(String, nullable=False)
     date_of_birth = Column(Date, nullable=False)
     gender = Column(String, nullable=True)
@@ -454,8 +460,20 @@ class StudentFeeInvoice(Base):
     __tablename__ = "student_fee_invoices"
 
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
+    admission_application_id = Column(Integer, ForeignKey("admission_applications.id"), nullable=True)
+    # Exactly one of these is set for a pre-enrollment admission fee
+    # (application_id only); once admission is confirmed, student_id is
+    # backfilled onto this SAME row - never a new row, never a
+    # duplicate receipt. Invoices generated after enrollment just set
+    # student_id directly and leave admission_application_id null.
+    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id"), nullable=True)
+    description = Column(String, nullable=True)
+    # For admission-stage fees with no recurring FeeStructure to point
+    # to (Registration Fee, Prospectus Fee, one-time Admission Fee) -
+    # a plain human-readable label for what this invoice is for.
+    # Regular post-enrollment invoices keep using fee_structure_id and
+    # can leave this null.
 
     billing_period = Column(String, nullable=False)  # e.g. "July 2026"
     due_date = Column(Date, nullable=False)
@@ -586,43 +604,178 @@ class Guardian(Base):
 
 class AdmissionApplication(Base):
     """
-    The Admissions workflow — deliberately SEPARATE from the Student table.
-    A Student row means "this child is enrolled here." An
-    AdmissionApplication row means "someone is in the process of applying,"
-    which might end in enrollment, rejection, or withdrawal. Converting one
-    into the other is an explicit action (see /admissions/applications/{id}/enroll),
-    not an automatic side effect.
+    The full admission pipeline, from first contact to enrollment — ONE
+    row per applicant that gains more data as it advances, rather than
+    scattering "the same applicant" across disconnected tables. This is
+    the CRM pattern (a Salesforce Opportunity, a HubSpot Deal): the row
+    exists from the very first Lead, and `stage` tracks where it
+    currently sits. A Student row means "this child is enrolled here";
+    an AdmissionApplication row means "someone is somewhere in the
+    process of applying, which might end in enrollment, rejection, or
+    loss." Converting one into the other happens at the
+    admission_confirmed stage — see admissions_engine.py — and is the
+    one place a Student row gets created from this table.
+
+    `stage` values, in pipeline order:
+        lead, inquiry, counseling, application_submitted,
+        document_verification, admission_test, interview,
+        decision_pending, rejected, waitlisted, fee_pending,
+        admission_confirmed
+    admission_test and interview are skipped automatically if the
+    school's AdmissionSettings has them disabled — see admissions_engine.py.
     """
     __tablename__ = "admission_applications"
 
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
-    applying_for_class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=False)
+    stage = Column(String, nullable=False, default="lead")
 
-    applicant_name = Column(String, nullable=False)
-    date_of_birth = Column(Date, nullable=False)
+    # --- Lead (earliest, minimal info) ---
+    source = Column(String, nullable=False, default="other")  # walk_in, website, referral, advertisement, call, other
+    student_name = Column(String, nullable=False)
+    parent_name = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+
+    # --- Inquiry (filled in once contact is qualified) ---
+    applying_for_class_id = Column(Integer, ForeignKey("school_classes.id"), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
     gender = Column(String, nullable=True)
-    previous_school = Column(String, nullable=True)
+    current_school = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    assigned_counselor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
-    guardian_id = Column(Integer, ForeignKey("guardians.id"), nullable=False)
+    # --- Application Submitted (the full form) ---
+    guardian_id = Column(Integer, ForeignKey("guardians.id"), nullable=True)
+    full_application_json = Column(String, nullable=True)  # sibling info, transport/hostel need, medical info, emergency contacts - structured, rarely queried directly
 
-    status = Column(String, nullable=False, default="inquiry")
-    # inquiry -> submitted -> under_review -> offer_sent -> enrolled
-    #                                                    -> rejected / withdrawn
+    # --- Decision ---
+    decision = Column(String, nullable=True)  # approved, waitlisted, rejected
+    decision_reason = Column(String, nullable=True)
+    decided_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    decided_at = Column(DateTime, nullable=True)
+    offer_valid_until = Column(Date, nullable=True)
+
+    # --- Terminal / outcome ---
+    lost_reason = Column(String, nullable=True)
+    converted_student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
+
     notes = Column(String, nullable=True)
-    reviewed_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-
-    enrolled_student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
-
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     guardian = relationship("Guardian")
     applying_for_class = relationship("SchoolClass")
+    counseling_sessions = relationship("CounselingSession", back_populates="application")
+    document_submissions = relationship("DocumentSubmission", back_populates="application")
+    test_result = relationship("AdmissionTestResult", back_populates="application", uselist=False)
+    interviews = relationship("Interview", back_populates="application")
+
+
+class CounselingSession(Base):
+    """One-to-many - a family may need several counseling touchpoints
+    before an application is even submitted."""
+    __tablename__ = "counseling_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("admission_applications.id"), nullable=False)
+    counselor_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    scheduled_at = Column(DateTime, nullable=False)
+    discussion_notes = Column(String, nullable=True)
+    follow_up_date = Column(Date, nullable=True)
+    outcome = Column(String, nullable=True)  # interested, needs_follow_up, not_interested
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship("AdmissionApplication", back_populates="counseling_sessions")
+
+
+class DocumentSubmission(Base):
+    """One row per required document type for one application."""
+    __tablename__ = "document_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("admission_applications.id"), nullable=False)
+    document_type = Column(String, nullable=False)  # birth_certificate, transfer_certificate, report_card, aadhaar, photo, caste_certificate, income_certificate, medical_certificate, residence_proof, migration_certificate, other
+    file_url = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending")  # pending, verified, rejected, needs_reupload
+    remarks = Column(String, nullable=True)
+    verified_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship("AdmissionApplication", back_populates="document_submissions")
+
+
+class AdmissionTestResult(Base):
+    """One-to-one per application - entirely skipped if the school
+    disables entrance tests in AdmissionSettings."""
+    __tablename__ = "admission_test_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("admission_applications.id"), nullable=False, unique=True)
+    conducted_at = Column(DateTime, nullable=True)
+    subjects_json = Column(String, nullable=True)  # [{"subject": "Maths", "marks": 42, "max_marks": 50}, ...]
+    overall_score = Column(Integer, nullable=True)
+    recommendation = Column(String, nullable=True)  # recommended, not_recommended
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship("AdmissionApplication", back_populates="test_result")
+
+
+class Interview(Base):
+    """One-to-many - allows multiple interview rounds. Panel members
+    are plain user references, not a special role: any existing staff
+    member (Principal, VP, Coordinator, or anyone else the school
+    chooses) can be assigned as a panelist for one specific interview."""
+    __tablename__ = "interviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    application_id = Column(Integer, ForeignKey("admission_applications.id"), nullable=False)
+    scheduled_at = Column(DateTime, nullable=False)
+    panel_user_ids_json = Column(String, nullable=False, default="[]")  # [12, 34] - user ids
+    remarks = Column(String, nullable=True)
+    recommendation = Column(String, nullable=True)  # recommended, not_recommended
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    application = relationship("AdmissionApplication", back_populates="interviews")
+
+
+class AdmissionSettings(Base):
+    """One row per school - the knobs that govern how the pipeline
+    behaves for that school (which optional stages run, what documents
+    are required, which classes are currently open, etc.)."""
+    __tablename__ = "admission_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=False, unique=True)
+
+    admission_number_format = Column(String, nullable=False, default="ADM-{year}-{seq:06d}")
+    enable_entrance_test = Column(Boolean, nullable=False, default=False)
+    enable_interview = Column(Boolean, nullable=False, default=True)
+    required_documents_json = Column(String, nullable=False, default="[]")  # ["birth_certificate", "transfer_certificate", ...]
+    classes_open_json = Column(String, nullable=False, default="[]")  # [school_class_id, ...]
+    application_fee = Column(Integer, nullable=False, default=0)
+
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DomainEvent(Base):
+    """Durable log of every event published through app/core/events.py -
+    an audit trail independent of whether any handler existed at the
+    time, and a way for a future module (Library, Hostel, RFID, etc.)
+    to backfill from history once it's stood up."""
+    __tablename__ = "domain_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_name = Column(String, nullable=False, index=True)
+    payload_json = Column(String, nullable=False)
+    occurred_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class Document(Base):
+
     """
     Polymorphic-ish document storage: entity_type + entity_id together
     identify what this document belongs to (a student, an admission

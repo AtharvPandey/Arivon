@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, GraduationCap, Wallet, Megaphone,
-  FileText, BarChart3, Settings, LogOut, ChevronDown, Lock, UserPlus, Bus,
+  FileText, BarChart3, Settings, LogOut, ChevronDown, Lock, UserPlus, Bus, Sparkles,
 } from "lucide-react";
 import { clearToken, resolveAssetUrl } from "../lib/api";
 import { getHomeRouteForRole } from "../lib/roleRouting";
@@ -58,6 +58,10 @@ const NAV_GROUPS = [
     ],
   },
   {
+    label: "Inquiries", icon: Sparkles, href: "/admin/inquiries", standalone: true,
+    roles: ["admissions_officer", "school_admin", "administrator", "principal", "vice_principal", "academic_coordinator", "super_admin"],
+  },
+  {
     label: "Admissions", icon: UserPlus, href: "/admin/admissions", standalone: true,
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
@@ -109,6 +113,7 @@ const WORKSPACE_PATH_OVERRIDES = {
   "/admin/school/calendar": { principal: "/principal/school/calendar", admissions: "/admissions/school/calendar" },
   "/admin/school/holidays": { principal: "/principal/school/holidays", admissions: "/admissions/school/holidays" },
   "/admin/students": { principal: "/principal/students", admissions: "/admissions/students" },
+  "/admin/inquiries": { admissions: "/admissions/inquiries" },
   "/admin/people/parents": { principal: "/principal/people/parents", admissions: "/admissions/people/parents" },
   "/admin/people/teachers": { principal: "/principal/people/teachers" },
   "/admin/people/staff": { principal: "/principal/people/staff" },
