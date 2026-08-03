@@ -167,13 +167,13 @@ def get_morning_briefing(school_id: int, date: date_type, db: Session = Depends(
     # ---------- 5. Pending admission inquiries ----------
     pending_admissions = db.query(models.AdmissionApplication).filter(
         models.AdmissionApplication.school_id == school_id,
-        models.AdmissionApplication.status.in_(["inquiry", "submitted", "under_review"]),
+        models.AdmissionApplication.stage.notin_(["admission_confirmed", "rejected", "waitlisted"]),
     ).order_by(models.AdmissionApplication.created_at.desc()).all()
 
     admissions = schemas.AdmissionsBriefing(
         pending_count=len(pending_admissions),
         items=[
-            schemas.AdmissionInquiryItem(id=a.id, applicant_name=a.applicant_name, created_at=a.created_at)
+            schemas.AdmissionInquiryItem(id=a.id, applicant_name=a.student_name, created_at=a.created_at)
             for a in pending_admissions[:10]
         ],
     )

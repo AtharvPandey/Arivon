@@ -126,7 +126,7 @@ def get_workbench_summary(school_id: int, date: date_type, db: Session = Depends
 
     admissions_pending = db.query(models.AdmissionApplication).filter(
         models.AdmissionApplication.school_id == school_id,
-        models.AdmissionApplication.status.notin_(["enrolled", "rejected", "withdrawn"]),
+        models.AdmissionApplication.stage.notin_(["admission_confirmed", "rejected", "waitlisted"]),
     ).count()
 
     fee_collected_today = db.query(models.FeePayment).join(
