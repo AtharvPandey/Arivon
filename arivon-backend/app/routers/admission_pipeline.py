@@ -417,6 +417,31 @@ def record_interview_outcome(interview_id: int, payload: schemas.InterviewOutcom
 
 
 @router.post(
+    "/applications/{application_id}/skip-test", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles("principal", "vice_principal", "school_admin", "administrator", "super_admin"))],
+)
+def skip_test(application_id: int, payload: schemas.SkipStageRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Per-applicant override, not a school-wide setting change - the
+    school's enable_entrance_test toggle keeps applying to every other
+    applicant. Deliberately restricted to the same role tier as an
+    actual admission Decision, since waiving an assessment step is a
+    comparable call."""
+    application = _get_application_or_404(db, application_id)
+    application = engine.skip_test(db, application, reason=payload.reason, skipped_by_user_id=current_user.id)
+    return _to_pipeline_out(db, application)
+
+
+@router.post(
+    "/applications/{application_id}/skip-interview", response_model=schemas.PipelineApplicationOut,
+    dependencies=[Depends(require_roles("principal", "vice_principal", "school_admin", "administrator", "super_admin"))],
+)
+def skip_interview(application_id: int, payload: schemas.SkipStageRequest, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    application = _get_application_or_404(db, application_id)
+    application = engine.skip_interview(db, application, reason=payload.reason, skipped_by_user_id=current_user.id)
+    return _to_pipeline_out(db, application)
+
+
+@router.post(
     "/applications/{application_id}/advance-past-interview", response_model=schemas.PipelineApplicationOut,
     dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
 )

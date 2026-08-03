@@ -209,6 +209,39 @@ def record_test_result(db: Session, application: models.AdmissionApplication, *,
     return result
 
 
+def _append_note(application: models.AdmissionApplication, note: str) -> None:
+    application.notes = f"{application.notes}\n{note}" if application.notes else note
+
+
+def skip_test(db: Session, application: models.AdmissionApplication, *, reason: str, skipped_by_user_id: int) -> models.AdmissionApplication:
+    """Skips the admission test for THIS one applicant, without
+    creating a fake AdmissionTestResult that would misrepresent a test
+    as having actually happened. Logged as an audit note on the
+    application instead - real trail, honest data. The school-wide
+    enable_entrance_test toggle still applies to every other
+    applicant; this is a per-applicant override, not a setting change."""
+    _require_stage(application, "admission_test")
+    skipper = db.query(models.User).filter(models.User.id == skipped_by_user_id).first()
+    _append_note(application, f"[Admission test skipped by {skipper.full_name if skipper else 'unknown'} on {datetime.utcnow().strftime('%Y-%m-%d')}: {reason}]")
+    settings = get_settings(db, application.school_id)
+    application.stage = "interview" if settings.enable_interview else "decision_pending"
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+def skip_interview(db: Session, application: models.AdmissionApplication, *, reason: str, skipped_by_user_id: int) -> models.AdmissionApplication:
+    """Same reasoning as skip_test - per-applicant override, honest
+    audit note, no fake Interview record."""
+    _require_stage(application, "interview")
+    skipper = db.query(models.User).filter(models.User.id == skipped_by_user_id).first()
+    _append_note(application, f"[Interview skipped by {skipper.full_name if skipper else 'unknown'} on {datetime.utcnow().strftime('%Y-%m-%d')}: {reason}]")
+    application.stage = "decision_pending"
+    db.commit()
+    db.refresh(application)
+    return application
+
+
 def schedule_interview(db: Session, application: models.AdmissionApplication, *, scheduled_at: datetime,
                         panel_user_ids: list[int]) -> models.Interview:
     _require_stage(application, "interview")
