@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, SessionLocal
 from app import models
 from app.core.config import settings
-from app.routers import auth, schools, academic_years, classes, students, staff, attendance, staff_attendance, dashboard, fees, announcements, guardians, admissions, documents, academics, platform_auth, platform, roles, events, houses, school_registration, verification, school_management, morning_briefing, complaints, substitutions, leave, homework, syllabus, exams, communication, transport, certificates, salary, reports, holidays, admission_pipeline
+from app.routers import auth, schools, academic_years, classes, students, staff, attendance, staff_attendance, dashboard, fees, announcements, guardians, admissions, documents, academics, platform_auth, platform, roles, events, houses, school_registration, verification, school_management, morning_briefing, complaints, substitutions, leave, homework, syllabus, exams, communication, transport, certificates, salary, reports, holidays, admission_pipeline, finance_dashboard
 
 app = FastAPI(
     title="Arivon API",
@@ -74,6 +74,7 @@ app.include_router(salary.router)
 app.include_router(reports.router)
 app.include_router(holidays.router)
 app.include_router(admission_pipeline.router)
+app.include_router(finance_dashboard.router)
 app.include_router(events.router)
 
 
@@ -100,6 +101,8 @@ def seed_roles():
             ("administrator", "General school administrator"),
             ("teacher", "Teaching staff"),
             ("accountant", "Handles fees and finance"),
+            ("senior_accountant", "Finance — can additionally manage fee structures and concessions"),
+            ("finance_manager", "Finance — can additionally approve waivers/refunds and manage Finance settings"),
             ("receptionist", "Front office"),
             ("admissions_officer", "Handles admission applications and enrollment"),
             ("academic_coordinator", "Manages subjects, class structure, and timetable"),

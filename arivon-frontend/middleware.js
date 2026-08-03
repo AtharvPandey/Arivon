@@ -37,6 +37,7 @@ const RESERVED_TOP_LEVEL_PATHS = new Set([
   "principal",
   "teacher",
   "admissions",
+  "finance",
   "platform",
   "change-password",
   "api",

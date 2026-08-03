@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Wallet, Tag, Receipt, ShieldCheck, BarChart3, Plus, Download, Check, X,
   AlertTriangle, Search, LayoutDashboard, Users, IndianRupee,
@@ -41,11 +41,12 @@ const TAB_COLOR_CLASSES = {
 
 const FINANCE_ROLES = ["accountant", "school_admin"];
 
-export default function FinanceView() {
+function FinanceViewInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [schoolId, setSchoolId] = useState(null);
   const [roleName, setRoleName] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "overview");
   const [error, setError] = useState("");
   const [classes, setClasses] = useState([]);
 
@@ -839,5 +840,13 @@ function SalaryTab({ schoolId, setError }) {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function FinanceView() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto px-6 py-8 text-sm text-slate-600">Loading...</div>}>
+      <FinanceViewInner />
+    </Suspense>
   );
 }

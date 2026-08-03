@@ -70,13 +70,8 @@ const NAV_GROUPS = [
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
-    label: "Finance", icon: Wallet, roles: ["accountant", "school_admin", "super_admin"],
-    items: [
-      { label: "Fee Management", href: "/admin/finance" },
-      { label: "Scholarships", href: null },
-      { label: "Discounts", href: null },
-      { label: "Reports", href: null },
-    ],
+    label: "Finance", icon: Wallet, href: "/admin/finance/dashboard", standalone: true,
+    roles: ["accountant", "senior_accountant", "finance_manager", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
     label: "Communication", icon: Megaphone, roles: null,
@@ -110,6 +105,7 @@ const NAV_GROUPS = [
 // listed for a given admin path, the admin path is used as-is (that
 // workspace doesn't have its own version of that page yet).
 const WORKSPACE_PATH_OVERRIDES = {
+  "/admin/finance/dashboard": { principal: "/principal/finance/dashboard" },
   "/admin/school/profile": { principal: "/principal/school/profile", admissions: "/admissions/school/profile" },
   "/admin/school/sessions": { principal: "/principal/school/sessions", admissions: "/admissions/school/sessions" },
   "/admin/school/houses": { principal: "/principal/school/houses", admissions: "/admissions/school/houses" },
@@ -148,7 +144,7 @@ const ROLE_WORKSPACE = {
   admissions_officer: "admissions",
 };
 
-const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "platform", "change-password"]);
+const RESERVED_TOP_LEVEL_PATHS = new Set(["admin", "principal", "teacher", "admissions", "finance", "platform", "change-password"]);
 
 /**
  * Strips a leading /{slug} segment from a pathname before comparing it

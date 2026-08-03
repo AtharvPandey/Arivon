@@ -574,7 +574,14 @@ class FeeStructureCreate(BaseModel):
     school_id: int
     academic_year_id: int
     school_class_id: int | None = None
-    fee_type: str
+    fee_category_id: int | None = None
+    # New, preferred field. fee_type below is kept ONLY for backward
+    # compatibility with the current Finance UI, which still sends a
+    # free-text string - the endpoint resolves it to a real
+    # FeeCategory (creating one if needed) rather than storing the
+    # string directly. Provide either field; fee_category_id wins if
+    # both are given.
+    fee_type: str | None = None
     amount: int
     frequency: str  # "monthly", "quarterly", "annual", "one_time"
     late_fee_amount: int = 0
@@ -586,7 +593,9 @@ class FeeStructureOut(BaseModel):
     school_id: int
     academic_year_id: int
     school_class_id: int | None
-    fee_type: str
+    fee_category_id: int
+    fee_category_name: str
+    fee_type: str  # kept as an alias of fee_category_name so the current Finance UI keeps working unchanged until it's rebuilt
     amount: int
     frequency: str
     late_fee_amount: int
@@ -3242,3 +3251,47 @@ class AdmissionsDashboardOut(BaseModel):
 
 class SkipStageRequest(BaseModel):
     reason: str
+
+
+# =========================================================================
+# Finance Dashboard — Phase 2. Every figure is a real query, matching
+# the same discipline as the Admissions dashboard: no placeholder data.
+# =========================================================================
+
+class FinanceKPIs(BaseModel):
+    today_collections: int
+    outstanding_amount: int
+    pending_waivers: int
+    pending_refunds: int
+    today_receipts: int
+    defaulters_count: int
+
+
+class PaymentMethodBreakdown(BaseModel):
+    method: str
+    amount: int
+
+
+class ClassDuesItem(BaseModel):
+    class_name: str
+    outstanding: int
+
+
+class UpcomingDueItem(BaseModel):
+    student_name: str
+    amount: int
+    due_date: date
+
+
+class RecentActivityItem(BaseModel):
+    type: str  # payment, waiver_requested, refund_requested
+    description: str
+    timestamp: datetime
+
+
+class FinanceDashboardOut(BaseModel):
+    kpis: FinanceKPIs
+    payment_mode_today: list[PaymentMethodBreakdown]
+    highest_dues_by_class: list[ClassDuesItem]
+    upcoming_due_dates: list[UpcomingDueItem]
+    recent_activity: list[RecentActivityItem]
