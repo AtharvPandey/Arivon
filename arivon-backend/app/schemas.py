@@ -3128,3 +3128,33 @@ class AdmissionSettingsUpdate(BaseModel):
     required_documents: list[str] | None = None
     classes_open: list[int] | None = None
     application_fee: int | None = None
+
+
+# =========================================================================
+# Students Joined — the operational handoff from Admissions to the rest
+# of the ERP. Not just a list: surfaces exactly what still needs doing
+# after confirmation (roll number, fee status) rather than assuming
+# everything is automatically finished once a Student row exists.
+# =========================================================================
+
+class StudentJoinedOut(BaseModel):
+    student_id: int
+    application_id: int
+    full_name: str
+    admission_number: str
+    roll_number: str | None
+    school_class_name: str | None
+    section_name: str | None
+    guardian_name: str
+    guardian_phone: str
+    guardian_email: str | None
+    confirmed_at: datetime
+    transport_required: bool
+    hostel_required: bool
+    fee_total_due: int
+    fee_total_paid: int
+    fee_fully_paid: bool
+
+
+class AssignRollNumberRequest(BaseModel):
+    roll_number: str

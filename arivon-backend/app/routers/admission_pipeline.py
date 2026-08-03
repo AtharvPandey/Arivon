@@ -474,3 +474,95 @@ def confirm_admission(application_id: int, payload: schemas.ConfirmAdmissionRequ
     application = _get_application_or_404(db, application_id)
     student = engine.confirm_admission(db, application, section_id=payload.section_id)
     return student
+
+
+# ---------------------------------------------------------------------
+# Students Joined - the operational handoff. Every student who came
+# through this pipeline, with exactly what still needs doing after
+# confirmation surfaced directly (roll number not yet assigned, fees
+# not yet fully paid) rather than assuming confirmation finished
+# everything.
+# ---------------------------------------------------------------------
+
+@router.get(
+    "/students-joined", response_model=list[schemas.StudentJoinedOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_students_joined(school_id: int, db: Session = Depends(get_db)):
+    applications = db.query(models.AdmissionApplication).filter(
+        models.AdmissionApplication.school_id == school_id,
+        models.AdmissionApplication.stage == "admission_confirmed",
+        models.AdmissionApplication.converted_student_id.isnot(None),
+    ).order_by(models.AdmissionApplication.updated_at.desc()).all()
+
+    result = []
+    for app in applications:
+        student = db.query(models.Student).filter(models.Student.id == app.converted_student_id).first()
+        if not student:
+            continue
+        section = db.query(models.Section).filter(models.Section.id == student.section_id).first() if student.section_id else None
+        school_class = db.query(models.SchoolClass).filter(models.SchoolClass.id == section.school_class_id).first() if section else None
+
+        invoices = db.query(models.StudentFeeInvoice).filter(
+            models.StudentFeeInvoice.admission_application_id == app.id
+        ).all()
+        fee_total_due = sum(inv.amount_due for inv in invoices)
+        fee_total_paid = sum(inv.amount_paid for inv in invoices)
+
+        try:
+            app_json = json.loads(app.full_application_json) if app.full_application_json else {}
+        except (json.JSONDecodeError, TypeError):
+            app_json = {}
+
+        result.append(schemas.StudentJoinedOut(
+            student_id=student.id, application_id=app.id, full_name=student.full_name,
+            admission_number=student.admission_number, roll_number=student.roll_number,
+            school_class_name=school_class.name if school_class else None,
+            section_name=section.name if section else None,
+            guardian_name=student.guardian_name, guardian_phone=student.guardian_phone, guardian_email=student.guardian_email,
+            confirmed_at=app.updated_at, transport_required=app_json.get("transport_required", False),
+            hostel_required=app_json.get("hostel_required", False),
+            fee_total_due=fee_total_due, fee_total_paid=fee_total_paid, fee_fully_paid=(fee_total_paid >= fee_total_due),
+        ))
+    return result
+
+
+@router.patch(
+    "/students-joined/{student_id}/roll-number", response_model=schemas.StudentJoinedOut,
+    dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
+)
+def assign_roll_number(student_id: int, payload: schemas.AssignRollNumberRequest, db: Session = Depends(get_db)):
+    student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    application = db.query(models.AdmissionApplication).filter(
+        models.AdmissionApplication.converted_student_id == student_id
+    ).first()
+    if not application:
+        raise HTTPException(status_code=404, detail="No admission application links to this student")
+
+    student.roll_number = payload.roll_number
+    db.commit()
+    db.refresh(student)
+
+    section = db.query(models.Section).filter(models.Section.id == student.section_id).first() if student.section_id else None
+    school_class = db.query(models.SchoolClass).filter(models.SchoolClass.id == section.school_class_id).first() if section else None
+    invoices = db.query(models.StudentFeeInvoice).filter(models.StudentFeeInvoice.admission_application_id == application.id).all()
+    fee_total_due = sum(inv.amount_due for inv in invoices)
+    fee_total_paid = sum(inv.amount_paid for inv in invoices)
+    try:
+        app_json = json.loads(application.full_application_json) if application.full_application_json else {}
+    except (json.JSONDecodeError, TypeError):
+        app_json = {}
+
+    return schemas.StudentJoinedOut(
+        student_id=student.id, application_id=application.id, full_name=student.full_name,
+        admission_number=student.admission_number, roll_number=student.roll_number,
+        school_class_name=school_class.name if school_class else None,
+        section_name=section.name if section else None,
+        guardian_name=student.guardian_name, guardian_phone=student.guardian_phone, guardian_email=student.guardian_email,
+        confirmed_at=application.updated_at, transport_required=app_json.get("transport_required", False),
+        hostel_required=app_json.get("hostel_required", False),
+        fee_total_due=fee_total_due, fee_total_paid=fee_total_paid, fee_fully_paid=(fee_total_paid >= fee_total_due),
+    )

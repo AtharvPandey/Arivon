@@ -66,6 +66,10 @@ const NAV_GROUPS = [
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
+    label: "Students Joined", icon: GraduationCap, href: "/admin/students-joined", standalone: true,
+    roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
+  },
+  {
     label: "Finance", icon: Wallet, roles: ["accountant", "school_admin", "super_admin"],
     items: [
       { label: "Fee Management", href: "/admin/finance" },
@@ -126,6 +130,7 @@ const WORKSPACE_PATH_OVERRIDES = {
   "/admin/attendance/student-register": { principal: "/principal/attendance/student-register" },
   "/admin/academics/examinations": { principal: "/principal/academics/examinations" },
   "/admin/admissions": { principal: "/principal/admissions", admissions: "/admissions/applications" },
+  "/admin/students-joined": { principal: "/principal/students-joined", admissions: "/admissions/students-joined" },
   "/admin/communication": { principal: "/principal/notices" },
   "/admin/communication/complaints": { principal: "/principal/complaints" },
   "/admin/transport": { principal: "/principal/transport" },
