@@ -74,6 +74,11 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
   const [decisionReason, setDecisionReason] = useState("");
   const [offerValidUntil, setOfferValidUntil] = useState("");
 
+  const [showSkipTest, setShowSkipTest] = useState(false);
+  const [skipTestReason, setSkipTestReason] = useState("");
+  const [showSkipInterview, setShowSkipInterview] = useState(false);
+  const [skipInterviewReason, setSkipInterviewReason] = useState("");
+
   const [feeItems, setFeeItems] = useState([{ description: "Registration Fee", amount: "", due_date: "" }]);
   const [confirmSectionId, setConfirmSectionId] = useState("");
 
@@ -172,6 +177,24 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
       await apiRequest(`/admission-pipeline/applications/${application.id}/decision`, {
         method: "POST", body: { decision, reason: decisionReason || null, offer_valid_until: decision === "approved" ? (offerValidUntil || null) : null },
       });
+      onUpdated();
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
+  }
+
+  async function handleSkipTest(e) {
+    e.preventDefault();
+    setSaving(true); setError("");
+    try {
+      await apiRequest(`/admission-pipeline/applications/${application.id}/skip-test`, { method: "POST", body: { reason: skipTestReason } });
+      onUpdated();
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
+  }
+
+  async function handleSkipInterview(e) {
+    e.preventDefault();
+    setSaving(true); setError("");
+    try {
+      await apiRequest(`/admission-pipeline/applications/${application.id}/skip-interview`, { method: "POST", body: { reason: skipInterviewReason } });
       onUpdated();
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   }
@@ -283,6 +306,24 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
                 </select>
                 <button type="submit" disabled={saving} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg py-2.5">Save Test Result</button>
               </form>
+
+              {canDecide && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  {!showSkipTest ? (
+                    <button onClick={() => setShowSkipTest(true)} className="text-xs text-slate-500 hover:underline">
+                      Skip test for this applicant
+                    </button>
+                  ) : (
+                    <form onSubmit={handleSkipTest} className="space-y-2">
+                      <input value={skipTestReason} onChange={(e) => setSkipTestReason(e.target.value)} placeholder="Reason (e.g. sibling of existing student)" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+                      <div className="flex gap-2">
+                        <button type="submit" disabled={saving} className="flex-1 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-white text-xs font-medium rounded-lg py-2">Confirm Skip</button>
+                        <button type="button" onClick={() => setShowSkipTest(false)} className="text-xs text-slate-500 px-3">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -320,6 +361,24 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
               <button onClick={handleAdvancePastInterview} disabled={saving || interviews.length === 0 || interviews.some((iv) => !iv.recommendation)} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-semibold rounded-lg py-2.5">
                 Advance to Decision
               </button>
+
+              {canDecide && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  {!showSkipInterview ? (
+                    <button onClick={() => setShowSkipInterview(true)} className="text-xs text-slate-500 hover:underline">
+                      Skip interview for this applicant
+                    </button>
+                  ) : (
+                    <form onSubmit={handleSkipInterview} className="space-y-2">
+                      <input value={skipInterviewReason} onChange={(e) => setSkipInterviewReason(e.target.value)} placeholder="Reason (e.g. strong prior academic record)" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs" />
+                      <div className="flex gap-2">
+                        <button type="submit" disabled={saving} className="flex-1 bg-slate-700 hover:bg-slate-800 disabled:opacity-60 text-white text-xs font-medium rounded-lg py-2">Confirm Skip</button>
+                        <button type="button" onClick={() => setShowSkipInterview(false)} className="text-xs text-slate-500 px-3">Cancel</button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -3238,3 +3238,7 @@ class AdmissionsDashboardOut(BaseModel):
     pending_documents: list[PendingDocumentItem]
     todays_meetings: list[TodayMeetingItem]
     recent_applications: list[RecentApplicationItem]
+
+
+class SkipStageRequest(BaseModel):
+    reason: str
