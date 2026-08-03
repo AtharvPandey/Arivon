@@ -1,7 +1,7 @@
 "use client";
 
-import AdmissionsListView from "../../../components/AdmissionsListView";
+import ApplicationsBoard from "../../../components/ApplicationsBoard";
 
 export default function AdminAdmissionsPage() {
-  return <AdmissionsListView detailPrefix="/admin/admissions" />;
+  return <ApplicationsBoard />;
 }

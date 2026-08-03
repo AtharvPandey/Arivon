@@ -229,12 +229,27 @@ def list_invoices(
 # ---------- Payments ----------
 
 def _generate_receipt_number(db: Session, school_id: int) -> str:
+    """Counts every payment at this school, whether its invoice is
+    already linked to a Student or still only linked to an
+    AdmissionApplication (pre-enrollment fees like Registration Fee).
+    The old version joined through Student only, which silently
+    excluded every admission-stage payment from the count - since
+    those invoices have student_id = NULL until confirmation, the
+    count was always 0 for them, generating the same receipt number
+    (RCPT-{year}-00001) every single time and colliding on the second
+    admission payment ever recorded."""
     year = date_type.today().year
-    count = db.query(models.FeePayment).join(
+    student_side_count = db.query(models.FeePayment).join(
         models.StudentFeeInvoice, models.FeePayment.invoice_id == models.StudentFeeInvoice.id
     ).join(
         models.Student, models.StudentFeeInvoice.student_id == models.Student.id
     ).filter(models.Student.school_id == school_id).count()
+    admission_side_count = db.query(models.FeePayment).join(
+        models.StudentFeeInvoice, models.FeePayment.invoice_id == models.StudentFeeInvoice.id
+    ).join(
+        models.AdmissionApplication, models.StudentFeeInvoice.admission_application_id == models.AdmissionApplication.id
+    ).filter(models.AdmissionApplication.school_id == school_id).count()
+    count = student_side_count + admission_side_count
     return f"RCPT-{year}-{count + 1:05d}"
 
 
@@ -267,9 +282,16 @@ def record_payment(
         )
 
     student = db.query(models.Student).filter(models.Student.id == invoice.student_id).first()
+    resolved_school_id = student.school_id if student else None
+    if resolved_school_id is None and invoice.admission_application_id:
+        application = db.query(models.AdmissionApplication).filter(
+            models.AdmissionApplication.id == invoice.admission_application_id
+        ).first()
+        resolved_school_id = application.school_id if application else None
+
     payment = models.FeePayment(
         invoice_id=payload.invoice_id,
-        receipt_number=_generate_receipt_number(db, student.school_id if student else 0),
+        receipt_number=_generate_receipt_number(db, resolved_school_id),
         amount=payload.amount,
         payment_date=payload.payment_date,
         payment_method=payload.payment_method,
