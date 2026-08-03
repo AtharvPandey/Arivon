@@ -70,7 +70,7 @@ const NAV_GROUPS = [
     roles: ["admissions_officer", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
-    label: "Finance", icon: Wallet, href: "/admin/finance/dashboard", standalone: true,
+    label: "Finance", icon: Wallet, href: "/admin/finance", standalone: true,
     roles: ["accountant", "senior_accountant", "finance_manager", "school_admin", "administrator", "principal", "super_admin"],
   },
   {
@@ -105,7 +105,7 @@ const NAV_GROUPS = [
 // listed for a given admin path, the admin path is used as-is (that
 // workspace doesn't have its own version of that page yet).
 const WORKSPACE_PATH_OVERRIDES = {
-  "/admin/finance/dashboard": { principal: "/principal/finance/dashboard" },
+  "/admin/finance": { principal: "/principal/finance" },
   "/admin/school/profile": { principal: "/principal/school/profile", admissions: "/admissions/school/profile" },
   "/admin/school/sessions": { principal: "/principal/school/sessions", admissions: "/admissions/school/sessions" },
   "/admin/school/houses": { principal: "/principal/school/houses", admissions: "/admissions/school/houses" },
