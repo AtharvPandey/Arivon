@@ -3158,3 +3158,83 @@ class StudentJoinedOut(BaseModel):
 
 class AssignRollNumberRequest(BaseModel):
     roll_number: str
+
+
+# =========================================================================
+# Admissions Dashboard — Phase 2. Every number here is a real query
+# against the pipeline tables, not a placeholder. "Seat Availability"
+# uses Section.capacity minus actual enrolled students in the classes
+# currently open for admission (per AdmissionSettings).
+# =========================================================================
+
+class DashboardKPIs(BaseModel):
+    new_inquiries_today: int
+    applications_submitted_total: int
+    pending_verification: int
+    interviews_today: int
+    admissions_confirmed_total: int
+    fees_collected_today: int
+    conversion_rate_pct: float
+    seat_capacity_total: int
+    seat_occupied_total: int
+    seat_available: int
+
+
+class StageCount(BaseModel):
+    stage: str
+    label: str
+    count: int
+
+
+class MonthCount(BaseModel):
+    month: str
+    count: int
+
+
+class MonthAmount(BaseModel):
+    month: str
+    amount: int
+
+
+class NamedCount(BaseModel):
+    name: str
+    count: int
+
+
+class FollowUpItem(BaseModel):
+    application_id: int
+    student_name: str
+    follow_up_date: date
+
+
+class PendingDocumentItem(BaseModel):
+    application_id: int
+    student_name: str
+    document_type: str
+
+
+class TodayMeetingItem(BaseModel):
+    type: str  # counseling, interview
+    student_name: str
+    scheduled_at: datetime
+
+
+class RecentApplicationItem(BaseModel):
+    application_id: int
+    student_name: str
+    stage: str
+    created_at: datetime
+
+
+class AdmissionsDashboardOut(BaseModel):
+    kpis: DashboardKPIs
+    stage_distribution: list[StageCount]
+    monthly_trend: list[MonthCount]
+    source_distribution: list[NamedCount]
+    admissions_by_class: list[NamedCount]
+    admissions_by_gender: list[NamedCount]
+    revenue_by_month: list[MonthAmount]
+    upcoming_follow_ups: list[FollowUpItem]
+    pending_documents: list[PendingDocumentItem]
+    todays_meetings: list[TodayMeetingItem]
+    recent_applications: list[RecentApplicationItem]

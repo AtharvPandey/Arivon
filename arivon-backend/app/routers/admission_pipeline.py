@@ -566,3 +566,183 @@ def assign_roll_number(student_id: int, payload: schemas.AssignRollNumberRequest
         hostel_required=app_json.get("hostel_required", False),
         fee_total_due=fee_total_due, fee_total_paid=fee_total_paid, fee_fully_paid=(fee_total_paid >= fee_total_due),
     )
+
+
+# ---------------------------------------------------------------------
+# Dashboard - the executive view, Phase 2. Every figure below is a real
+# query against the pipeline tables built in earlier phases, not a
+# placeholder - if a metric from the original spec had no real data to
+# back it (a Notifications feed, for instance), it's left out entirely
+# rather than faked.
+# ---------------------------------------------------------------------
+
+STAGE_LABELS = {
+    "lead": "Lead", "inquiry": "Inquiry", "counseling": "Counseling",
+    "application_submitted": "Submitted", "document_verification": "Verification",
+    "admission_test": "Test", "interview": "Interview", "decision_pending": "Decision Pending",
+    "rejected": "Rejected", "waitlisted": "Waitlisted", "fee_pending": "Fee Pending",
+    "admission_confirmed": "Confirmed",
+}
+
+
+@router.get(
+    "/dashboard", response_model=schemas.AdmissionsDashboardOut,
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def get_dashboard(school_id: int, db: Session = Depends(get_db)):
+    from datetime import date as date_type, datetime as datetime_type
+
+    today = date_type.today()
+    today_start = datetime_type.combine(today, datetime_type.min.time())
+    today_end = datetime_type.combine(today, datetime_type.max.time())
+
+    all_apps = db.query(models.AdmissionApplication).filter(models.AdmissionApplication.school_id == school_id).all()
+
+    # --- KPIs ---
+    new_inquiries_today = sum(1 for a in all_apps if a.created_at.date() == today)
+    applications_submitted_total = sum(1 for a in all_apps if a.stage not in ("lead", "inquiry", "counseling"))
+    pending_verification = sum(1 for a in all_apps if a.stage == "document_verification")
+    admissions_confirmed_total = sum(1 for a in all_apps if a.stage == "admission_confirmed")
+
+    interviews_today = db.query(models.Interview).join(
+        models.AdmissionApplication, models.Interview.application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id,
+        models.Interview.scheduled_at >= today_start, models.Interview.scheduled_at <= today_end,
+    ).count()
+
+    fees_collected_today = db.query(models.FeePayment).join(
+        models.StudentFeeInvoice, models.FeePayment.invoice_id == models.StudentFeeInvoice.id
+    ).join(
+        models.AdmissionApplication, models.StudentFeeInvoice.admission_application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id, models.FeePayment.payment_date == today,
+    ).with_entities(models.FeePayment.amount).all()
+    fees_collected_today_total = sum(p[0] for p in fees_collected_today)
+
+    conversion_rate_pct = round((admissions_confirmed_total / len(all_apps) * 100), 1) if all_apps else 0.0
+
+    settings = engine.get_settings(db, school_id)
+    classes_open = json.loads(settings.classes_open_json)
+    if classes_open:
+        sections_open = db.query(models.Section).filter(models.Section.school_class_id.in_(classes_open)).all()
+    else:
+        sections_open = db.query(models.Section).join(
+            models.SchoolClass, models.Section.school_class_id == models.SchoolClass.id
+        ).filter(models.SchoolClass.school_id == school_id).all()
+    seat_capacity_total = sum(s.capacity or 0 for s in sections_open)
+    section_ids_open = [s.id for s in sections_open]
+    seat_occupied_total = db.query(models.Student).filter(
+        models.Student.section_id.in_(section_ids_open), models.Student.is_active == True,
+    ).count() if section_ids_open else 0
+
+    kpis = schemas.DashboardKPIs(
+        new_inquiries_today=new_inquiries_today, applications_submitted_total=applications_submitted_total,
+        pending_verification=pending_verification, interviews_today=interviews_today,
+        admissions_confirmed_total=admissions_confirmed_total, fees_collected_today=fees_collected_today_total,
+        conversion_rate_pct=conversion_rate_pct, seat_capacity_total=seat_capacity_total,
+        seat_occupied_total=seat_occupied_total, seat_available=max(seat_capacity_total - seat_occupied_total, 0),
+    )
+
+    # --- Stage distribution (every application, where it stands right now) ---
+    stage_counts = {}
+    for a in all_apps:
+        stage_counts[a.stage] = stage_counts.get(a.stage, 0) + 1
+    stage_distribution = [
+        schemas.StageCount(stage=stage, label=label, count=stage_counts.get(stage, 0))
+        for stage, label in STAGE_LABELS.items()
+    ]
+
+    # --- Monthly trend (confirmations by month) ---
+    from collections import defaultdict
+    monthly = defaultdict(int)
+    for a in all_apps:
+        if a.stage == "admission_confirmed":
+            monthly[a.updated_at.strftime("%Y-%m")] += 1
+    monthly_trend = [schemas.MonthCount(month=m, count=c) for m, c in sorted(monthly.items())]
+
+    # --- Source distribution ---
+    source_counts = defaultdict(int)
+    for a in all_apps:
+        source_counts[a.source] += 1
+    source_distribution = [schemas.NamedCount(name=s, count=c) for s, c in source_counts.items()]
+
+    # --- Admissions by class / gender (confirmed students only) ---
+    confirmed_student_ids = [a.converted_student_id for a in all_apps if a.stage == "admission_confirmed" and a.converted_student_id]
+    confirmed_students = db.query(models.Student).filter(models.Student.id.in_(confirmed_student_ids)).all() if confirmed_student_ids else []
+
+    class_counts = defaultdict(int)
+    gender_counts = defaultdict(int)
+    for s in confirmed_students:
+        section = db.query(models.Section).filter(models.Section.id == s.section_id).first() if s.section_id else None
+        school_class = db.query(models.SchoolClass).filter(models.SchoolClass.id == section.school_class_id).first() if section else None
+        class_counts[school_class.name if school_class else "Unassigned"] += 1
+        gender_counts[s.gender or "Not specified"] += 1
+    admissions_by_class = [schemas.NamedCount(name=k, count=v) for k, v in class_counts.items()]
+    admissions_by_gender = [schemas.NamedCount(name=k, count=v) for k, v in gender_counts.items()]
+
+    # --- Revenue by month (admission-linked payments only) ---
+    all_admission_payments = db.query(models.FeePayment).join(
+        models.StudentFeeInvoice, models.FeePayment.invoice_id == models.StudentFeeInvoice.id
+    ).join(
+        models.AdmissionApplication, models.StudentFeeInvoice.admission_application_id == models.AdmissionApplication.id
+    ).filter(models.AdmissionApplication.school_id == school_id).all()
+    revenue_monthly = defaultdict(int)
+    for p in all_admission_payments:
+        revenue_monthly[p.payment_date.strftime("%Y-%m")] += p.amount
+    revenue_by_month = [schemas.MonthAmount(month=m, amount=a) for m, a in sorted(revenue_monthly.items())]
+
+    # --- Widgets ---
+    upcoming_follow_ups = []
+    sessions_with_followup = db.query(models.CounselingSession).join(
+        models.AdmissionApplication, models.CounselingSession.application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id, models.CounselingSession.follow_up_date >= today,
+    ).order_by(models.CounselingSession.follow_up_date).limit(5).all()
+    for s in sessions_with_followup:
+        app = db.query(models.AdmissionApplication).filter(models.AdmissionApplication.id == s.application_id).first()
+        upcoming_follow_ups.append(schemas.FollowUpItem(application_id=s.application_id, student_name=app.student_name, follow_up_date=s.follow_up_date))
+
+    pending_documents = []
+    pending_docs = db.query(models.DocumentSubmission).join(
+        models.AdmissionApplication, models.DocumentSubmission.application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id, models.DocumentSubmission.status.in_(["pending", "needs_reupload"]),
+    ).limit(10).all()
+    for d in pending_docs:
+        app = db.query(models.AdmissionApplication).filter(models.AdmissionApplication.id == d.application_id).first()
+        pending_documents.append(schemas.PendingDocumentItem(application_id=d.application_id, student_name=app.student_name, document_type=d.document_type))
+
+    todays_meetings = []
+    todays_counseling = db.query(models.CounselingSession).join(
+        models.AdmissionApplication, models.CounselingSession.application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id,
+        models.CounselingSession.scheduled_at >= today_start, models.CounselingSession.scheduled_at <= today_end,
+    ).all()
+    for s in todays_counseling:
+        app = db.query(models.AdmissionApplication).filter(models.AdmissionApplication.id == s.application_id).first()
+        todays_meetings.append(schemas.TodayMeetingItem(type="counseling", student_name=app.student_name, scheduled_at=s.scheduled_at))
+    todays_interviews = db.query(models.Interview).join(
+        models.AdmissionApplication, models.Interview.application_id == models.AdmissionApplication.id
+    ).filter(
+        models.AdmissionApplication.school_id == school_id,
+        models.Interview.scheduled_at >= today_start, models.Interview.scheduled_at <= today_end,
+    ).all()
+    for iv in todays_interviews:
+        app = db.query(models.AdmissionApplication).filter(models.AdmissionApplication.id == iv.application_id).first()
+        todays_meetings.append(schemas.TodayMeetingItem(type="interview", student_name=app.student_name, scheduled_at=iv.scheduled_at))
+    todays_meetings.sort(key=lambda m: m.scheduled_at)
+
+    recent_applications = [
+        schemas.RecentApplicationItem(application_id=a.id, student_name=a.student_name, stage=a.stage, created_at=a.created_at)
+        for a in sorted(all_apps, key=lambda a: a.created_at, reverse=True)[:5]
+    ]
+
+    return schemas.AdmissionsDashboardOut(
+        kpis=kpis, stage_distribution=stage_distribution, monthly_trend=monthly_trend,
+        source_distribution=source_distribution, admissions_by_class=admissions_by_class,
+        admissions_by_gender=admissions_by_gender, revenue_by_month=revenue_by_month,
+        upcoming_follow_ups=upcoming_follow_ups, pending_documents=pending_documents,
+        todays_meetings=todays_meetings, recent_applications=recent_applications,
+    )
