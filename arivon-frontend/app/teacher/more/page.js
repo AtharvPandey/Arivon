@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookMarked, FileCheck2, CalendarDays, Megaphone, Settings, LogOut, ChevronRight } from "lucide-react";
+import { BookMarked, FileCheck2, CalendarDays, Megaphone, Settings, LogOut, ChevronRight, Building2 } from "lucide-react";
 import { apiRequest, isLoggedIn, clearToken } from "../../../lib/api";
 
 const ITEMS = [
@@ -11,6 +11,15 @@ const ITEMS = [
   { label: "Leave", icon: CalendarDays, href: "/teacher/leave", description: "Apply for leave, check balance" },
   { label: "Notices & Messages", icon: Megaphone, href: "/teacher/notices", description: "School notices and parent messages" },
   { label: "Settings", icon: Settings, href: "/teacher/settings", description: "Your account, change password" },
+];
+
+const SCHOOL_ITEMS = [
+  { label: "School Profile", href: "/teacher/school/profile" },
+  { label: "Academic Sessions", href: "/teacher/school/sessions" },
+  { label: "Houses", href: "/teacher/school/houses" },
+  { label: "Campus", href: "/teacher/school/campus" },
+  { label: "Calendar", href: "/teacher/school/calendar" },
+  { label: "Holidays", href: "/teacher/school/holidays" },
 ];
 
 export default function TeacherMorePage() {

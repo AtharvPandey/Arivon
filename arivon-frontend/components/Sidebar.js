@@ -20,14 +20,14 @@ const NAV_GROUPS = [
   },
   {
     label: "School", icon: Building2,
-    roles: ["school_admin", "administrator", "principal", "vice_principal", "super_admin"],
+    roles: null,
     items: [
       { label: "School Profile", href: "/admin/school/profile" },
       { label: "Academic Sessions", href: "/admin/school/sessions" },
       { label: "Houses", href: "/admin/school/houses" },
-      { label: "Campuses", href: null },
-      { label: "Calendar", href: null },
-      { label: "Holidays", href: null },
+      { label: "Campus", href: "/admin/school/campus" },
+      { label: "Calendar", href: "/admin/school/calendar" },
+      { label: "Holidays", href: "/admin/school/holidays" },
     ],
   },
   {
@@ -102,9 +102,12 @@ const NAV_GROUPS = [
 // listed for a given admin path, the admin path is used as-is (that
 // workspace doesn't have its own version of that page yet).
 const WORKSPACE_PATH_OVERRIDES = {
-  "/admin/school/profile": { principal: "/principal/school/profile" },
-  "/admin/school/sessions": { principal: "/principal/school/sessions" },
-  "/admin/school/houses": { principal: "/principal/school/houses" },
+  "/admin/school/profile": { principal: "/principal/school/profile", admissions: "/admissions/school/profile" },
+  "/admin/school/sessions": { principal: "/principal/school/sessions", admissions: "/admissions/school/sessions" },
+  "/admin/school/houses": { principal: "/principal/school/houses", admissions: "/admissions/school/houses" },
+  "/admin/school/campus": { principal: "/principal/school/campus", admissions: "/admissions/school/campus" },
+  "/admin/school/calendar": { principal: "/principal/school/calendar", admissions: "/admissions/school/calendar" },
+  "/admin/school/holidays": { principal: "/principal/school/holidays", admissions: "/admissions/school/holidays" },
   "/admin/students": { principal: "/principal/students", admissions: "/admissions/students" },
   "/admin/people/parents": { principal: "/principal/people/parents", admissions: "/admissions/people/parents" },
   "/admin/people/teachers": { principal: "/principal/people/teachers" },

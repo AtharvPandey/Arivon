@@ -2866,3 +2866,27 @@ class SchoolPublicOut(BaseModel):
     board_type: str
     city: str | None
     state: str | None
+
+
+# =========================================================================
+# Holidays — reading is open to everyone at the school (a holiday list
+# only helps if everyone can see it); creating/deleting is admin-tier
+# only, matching the same read/write split used for Events.
+# =========================================================================
+
+class HolidayCreate(BaseModel):
+    school_id: int
+    academic_year_id: int
+    name: str
+    date: date
+
+
+class HolidayOut(BaseModel):
+    id: int
+    school_id: int
+    academic_year_id: int
+    name: str
+    date: date
+
+    class Config:
+        from_attributes = True
