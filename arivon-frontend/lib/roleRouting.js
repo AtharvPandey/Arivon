@@ -16,8 +16,13 @@ export const ROLE_HOME_ROUTES = {
   teacher: "/teacher/dashboard",
   admissions_officer: "/admissions/dashboard",
 
+  // Finance-tier roles all land in their own workspace, matching
+  // Teacher/Admissions Officer - never the shared /admin/ dashboard.
+  accountant: "/finance/dashboard",
+  senior_accountant: "/finance/dashboard",
+  finance_manager: "/finance/dashboard",
+
   // No dedicated workbench built yet — smart redirect to their main tool.
-  accountant: "/admin/finance",
   academic_coordinator: "/admin/academics",
   receptionist: "/admin/students",
   librarian: "/admin",
