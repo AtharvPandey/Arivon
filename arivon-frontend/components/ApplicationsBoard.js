@@ -198,7 +198,7 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   }
 
-  const allDocsVerified = documents.length > 0 && documents.every((d) => d.status === "verified");
+  const allDocsVerified = documents.length === 0 || documents.every((d) => d.status === "verified");
   const allInvoicesPaid = invoices.length > 0 && invoices.every((inv) => inv.status === "paid");
   const meta = STAGE_META[application.stage] || { label: application.stage, color: "bg-slate-100 text-slate-700" };
   let appJson = {};
@@ -237,20 +237,26 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
                 </button>
               ) : (
                 <>
-                  <div className="space-y-2 mb-3">
-                    {documents.map((doc) => (
-                      <div key={doc.id} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-medium text-slate-800">{DOC_LABELS[doc.document_type] || doc.document_type}</p>
-                          {doc.remarks && <p className="text-[10px] text-slate-400">{doc.remarks}</p>}
+                  {documents.length === 0 ? (
+                    <p className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3 mb-3">
+                      No documents are configured as required for this school yet — nothing to verify, so you can advance directly.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 mb-3">
+                      {documents.map((doc) => (
+                        <div key={doc.id} className="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-medium text-slate-800">{DOC_LABELS[doc.document_type] || doc.document_type}</p>
+                            {doc.remarks && <p className="text-[10px] text-slate-400">{doc.remarks}</p>}
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button onClick={() => handleVerifyDoc(doc.id, "verified")} className={`w-7 h-7 rounded-md flex items-center justify-center ${doc.status === "verified" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-emerald-50"}`}><CheckCircle2 size={13} /></button>
+                            <button onClick={() => handleVerifyDoc(doc.id, "rejected")} className={`w-7 h-7 rounded-md flex items-center justify-center ${doc.status === "rejected" ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-rose-50"}`}><XCircle size={13} /></button>
+                          </div>
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button onClick={() => handleVerifyDoc(doc.id, "verified")} className={`w-7 h-7 rounded-md flex items-center justify-center ${doc.status === "verified" ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-emerald-50"}`}><CheckCircle2 size={13} /></button>
-                          <button onClick={() => handleVerifyDoc(doc.id, "rejected")} className={`w-7 h-7 rounded-md flex items-center justify-center ${doc.status === "rejected" ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-400 hover:bg-rose-50"}`}><XCircle size={13} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                   <button onClick={handleAdvancePastVerification} disabled={saving || !allDocsVerified} className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white text-sm font-semibold rounded-lg py-2.5">
                     {allDocsVerified ? "Advance to Next Stage" : "Verify all documents to continue"}
                   </button>
