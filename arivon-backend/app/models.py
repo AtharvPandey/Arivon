@@ -1446,6 +1446,7 @@ class FeeConcession(Base):
     id = Column(Integer, primary_key=True, index=True)
     school_id = Column(Integer, ForeignKey("schools.id"), nullable=False)
     name = Column(String, nullable=False)  # "Sibling Discount", "RTE Exemption", "SC/ST Concession"
+    category = Column(String, nullable=False, default="concession")  # "concession" or "scholarship" - same mechanism, different business meaning; parents and accountants think of these as different things even though nothing about the underlying rule differs
     concession_type = Column(String, nullable=False)  # "sibling", "rte", "category", "custom"
     discount_type = Column(String, nullable=False)  # "percentage" or "flat"
     discount_value = Column(Integer, nullable=False)  # a % (0-100) or a flat rupee amount, per discount_type

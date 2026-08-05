@@ -55,11 +55,28 @@ def _require_status(refund: models.Refund, *allowed: str):
 
 def request_refund(db: Session, *, school_id: int, payment_id: int, amount: int, reason: str,
                     requested_by_user_id: int) -> models.Refund:
+    if amount <= 0:
+        raise FinanceError("Refund amount must be greater than zero.")
+
     payment = db.query(models.FeePayment).filter(models.FeePayment.id == payment_id).first()
     if not payment:
         raise FinanceError("Payment not found.")
-    if amount > payment.amount:
-        raise FinanceError(f"Refund amount ({amount}) can't exceed the original payment ({payment.amount}).")
+
+    # A payment can have multiple partial refunds over time - count every
+    # refund against it that isn't rejected (requested/under_review/
+    # approved/processed all "reserve" against the original amount),
+    # otherwise two overlapping refund requests could both later be
+    # approved and refund more than the payment was ever worth.
+    already_committed = db.query(models.Refund).filter(
+        models.Refund.payment_id == payment_id, models.Refund.status != "rejected",
+    ).with_entities(models.Refund.amount).all()
+    already_committed_total = sum(r[0] for r in already_committed)
+    remaining_refundable = payment.amount - already_committed_total
+    if amount > remaining_refundable:
+        raise FinanceError(
+            f"Refund amount ({amount}) exceeds what's still refundable on this payment "
+            f"(₹{remaining_refundable} remaining out of the original ₹{payment.amount})."
+        )
 
     invoice = db.query(models.StudentFeeInvoice).filter(models.StudentFeeInvoice.id == payment.invoice_id).first()
     if not invoice or not invoice.student_id:
