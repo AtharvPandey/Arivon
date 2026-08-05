@@ -29,17 +29,17 @@ function buildNavGroups(rolePrefix) {
     {
       label: "Fee Management", icon: Wallet,
       items: [
-        { label: "Fee Structures", icon: Wallet, href: `${rolePrefix}?tab=structures` },
-        { label: "Fee Categories", icon: Tag, href: `${rolePrefix}?tab=categories` },
-        { label: "Discounts & Scholarships", icon: Percent, href: `${rolePrefix}?tab=concessions` },
+        { label: "Fee Structures", icon: Wallet, href: `${rolePrefix}/structures` },
+        { label: "Fee Categories", icon: Tag, href: `${rolePrefix}/structures` },
+        { label: "Discounts & Scholarships", icon: Percent, href: `${rolePrefix}/concessions` },
       ],
     },
     {
       label: "Billing", icon: Receipt,
       items: [
-        { label: "Student Billing", icon: Receipt, href: `${rolePrefix}?tab=billing` },
-        { label: "Collections", icon: Banknote, href: `${rolePrefix}?tab=billing` },
-        { label: "Refunds", icon: RotateCcw, href: `${rolePrefix}?tab=refunds` },
+        { label: "Student Billing", icon: Receipt, href: `${rolePrefix}/billing` },
+        { label: "Collections", icon: Banknote, href: `${rolePrefix}/collections` },
+        { label: "Refunds", icon: RotateCcw, href: `${rolePrefix}/refunds` },
       ],
     },
     {
