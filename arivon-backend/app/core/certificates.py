@@ -197,7 +197,7 @@ def generate_report_card_pdf(student, school, exam, result, class_name: str, sec
     return stored_filename
 
 
-def generate_fee_receipt_pdf(student, school, payment, invoice, fee_structure) -> str:
+def generate_fee_receipt_pdf(student, school, payment, invoice, fee_category_name: str | None = None) -> str:
     """
     A fee receipt — deliberately compact (a single small page, not a
     full-page document) since this is handed over or shared at the
@@ -230,7 +230,7 @@ def generate_fee_receipt_pdf(student, school, payment, invoice, fee_structure) -
     rows = [
         ["Student Name", student.full_name],
         ["Admission Number", student.admission_number],
-        ["Fee Type", fee_structure.fee_type if fee_structure else "—"],
+        ["Fee Type", fee_category_name or "—"],
         ["Billing Period", invoice.billing_period],
         ["Payment Method", payment.payment_method.replace("_", " ").upper()],
     ]
