@@ -39,7 +39,15 @@ const TAB_COLOR_CLASSES = {
   sky: "border-sky-600 text-sky-700",
 };
 
-const FINANCE_ROLES = ["accountant", "school_admin"];
+// Everyone who should see Fee Management at all, matching the
+// confirmed Finance role hierarchy - this list was stale (only
+// accountant/school_admin) from before that hierarchy existed, which
+// silently blocked Senior Accountant, Finance Manager, AND Principal
+// (who should have view-only access) from ever seeing this page.
+const FINANCE_ROLES = ["accountant", "senior_accountant", "finance_manager", "school_admin", "administrator", "super_admin", "principal"];
+// Principal is the one role in that list who's view-only everywhere
+// in Finance - every write action below is gated on this flag.
+const VIEW_ONLY_ROLES = ["principal"];
 
 function FinanceViewInner() {
   const router = useRouter();
@@ -60,10 +68,6 @@ function FinanceViewInner() {
         const me = await apiRequest("/auth/me");
         setSchoolId(me.school_id);
         setRoleName(me.role_name);
-        // Skip fetching anything else if this role can't access Fee
-        // Management at all — every tab below assumes Accountant/School
-        // Admin access, and calling those endpoints anyway just throws
-        // an unhandled 403 that used to crash the whole page.
         if (!FINANCE_ROLES.includes(me.role_name)) return;
         const classList = await apiRequest(`/classes/?school_id=${me.school_id}`);
         setClasses(classList);
@@ -83,14 +87,15 @@ function FinanceViewInner() {
           <ShieldCheck size={22} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm font-medium text-slate-800 mb-1">Access restricted</p>
           <p className="text-sm text-slate-500">
-            Fee Management is restricted to Accountant and School Admin roles — this keeps money-handling
+            Fee Management is restricted to Finance-tier roles and school leadership — this keeps money-handling
             accountable to one department, the way it works in a real school office.
-            Log in with an Accountant or School Admin account to view this page.
           </p>
         </div>
       </div>
     );
   }
+
+  const canEdit = !VIEW_ONLY_ROLES.includes(roleName);
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -114,12 +119,12 @@ function FinanceViewInner() {
       </div>
 
       {activeTab === "overview" && <OverviewTab schoolId={schoolId} setError={setError} setActiveTab={setActiveTab} />}
-      {activeTab === "structures" && <StructuresTab schoolId={schoolId} classes={classes} setError={setError} />}
-      {activeTab === "concessions" && <ConcessionsTab schoolId={schoolId} setError={setError} />}
-      {activeTab === "billing" && <BillingTab schoolId={schoolId} classes={classes} setError={setError} />}
-      {activeTab === "waivers" && <WaiversTab schoolId={schoolId} setError={setError} />}
+      {activeTab === "structures" && <StructuresTab schoolId={schoolId} classes={classes} setError={setError} canEdit={canEdit} />}
+      {activeTab === "concessions" && <ConcessionsTab schoolId={schoolId} setError={setError} canEdit={canEdit} />}
+      {activeTab === "billing" && <BillingTab schoolId={schoolId} classes={classes} setError={setError} canEdit={canEdit} />}
+      {activeTab === "waivers" && <WaiversTab schoolId={schoolId} setError={setError} canEdit={canEdit} />}
       {activeTab === "reports" && <ReportsTab schoolId={schoolId} classes={classes} setError={setError} />}
-      {activeTab === "salary" && <SalaryTab schoolId={schoolId} setError={setError} />}
+      {activeTab === "salary" && <SalaryTab schoolId={schoolId} setError={setError} canEdit={canEdit} />}
     </div>
   );
 }
@@ -207,7 +212,7 @@ function OverviewTab({ schoolId, setError, setActiveTab }) {
 
 // ---------- Fee Structures Tab ----------
 
-function StructuresTab({ schoolId, classes, setError }) {
+function StructuresTab({ schoolId, classes, setError, canEdit }) {
   const [structures, setStructures] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [classId, setClassId] = useState("");
@@ -251,12 +256,14 @@ function StructuresTab({ schoolId, classes, setError }) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-slate-600">{structures.length} fee structure(s) defined.</p>
-        <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
-          <Plus size={12} /> Add Fee Structure
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
+            <Plus size={12} /> Add Fee Structure
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {canEdit && showForm && (
         <form onSubmit={handleCreate} className="bg-white border border-slate-200 rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-3 gap-2">
           <ClassSelect classes={classes} value={classId} onChange={setClassId} placeholder="All classes" />
           <input value={feeType} onChange={(e) => setFeeType(e.target.value)} placeholder="Fee type (e.g. Tuition)" required className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
@@ -298,7 +305,7 @@ function StructuresTab({ schoolId, classes, setError }) {
 
 // ---------- Concessions Tab ----------
 
-function ConcessionsTab({ schoolId, setError }) {
+function ConcessionsTab({ schoolId, setError, canEdit }) {
   const [concessions, setConcessions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -342,12 +349,14 @@ function ConcessionsTab({ schoolId, setError }) {
     <div>
       <p className="text-sm text-slate-600 mb-4">Reusable discount rules — sibling discounts, RTE exemption, category-based concessions — applied when generating an invoice.</p>
       <div className="flex justify-end mb-4">
-        <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
-          <Plus size={12} /> Add Concession
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
+            <Plus size={12} /> Add Concession
+          </button>
+        )}
       </div>
 
-      {showForm && (
+      {canEdit && showForm && (
         <form onSubmit={handleCreate} className="bg-white border border-slate-200 rounded-xl p-4 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. Sibling Discount)" required className="col-span-2 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
@@ -384,7 +393,7 @@ function ConcessionsTab({ schoolId, setError }) {
 
 // ---------- Billing Tab (Invoices & Payments) ----------
 
-function BillingTab({ schoolId, classes, setError }) {
+function BillingTab({ schoolId, classes, setError, canEdit }) {
   const [classId, setClassId] = useState("");
   const [sections, setSections] = useState([]);
   const [sectionId, setSectionId] = useState("");
@@ -485,7 +494,7 @@ function BillingTab({ schoolId, classes, setError }) {
                   <span className="text-slate-500">Paid:</span> <span className="font-medium text-slate-900">₹{inv.amount_paid.toLocaleString()}</span>
                   {" · "}<span className="text-slate-500">Balance:</span> <span className="font-semibold text-rose-600">₹{inv.balance.toLocaleString()}</span>
                 </p>
-                {inv.balance > 0 && payingInvoiceId !== inv.id && (
+                {inv.balance > 0 && payingInvoiceId !== inv.id && canEdit && (
                   <button onClick={() => { setPayingInvoiceId(inv.id); setPayAmount(inv.balance); }} className="text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white rounded-lg px-3 py-1.5">
                     Record Payment
                   </button>
@@ -539,7 +548,7 @@ function BillingTab({ schoolId, classes, setError }) {
 
 // ---------- Waivers Tab ----------
 
-function WaiversTab({ schoolId, setError }) {
+function WaiversTab({ schoolId, setError, canEdit }) {
   const [waivers, setWaivers] = useState([]);
   const [reviewingId, setReviewingId] = useState(null);
   const [notes, setNotes] = useState("");
@@ -580,7 +589,9 @@ function WaiversTab({ schoolId, setError }) {
                 <p className="text-sm font-semibold text-slate-900">{w.student_name} · ₹{w.waiver_amount.toLocaleString()}</p>
                 <p className="text-xs text-slate-500">{w.reason}</p>
               </div>
-              {reviewingId === w.id ? (
+              {!canEdit ? (
+                <span className="text-xs font-medium text-slate-400 px-3 py-1.5">Pending Finance review</span>
+              ) : reviewingId === w.id ? (
                 <div className="flex items-center gap-2">
                   <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className="text-xs rounded-md border border-slate-200 px-2 py-1.5 w-32" />
                   <button onClick={() => handleReview(w.id, "approve")} className="text-xs font-medium bg-violet-600 hover:bg-violet-700 text-white rounded-md px-2.5 py-1.5">Approve</button>
@@ -706,7 +717,7 @@ function ReportsTab({ schoolId, classes, setError }) {
 
 // ---------- Staff Salary Tab ----------
 
-function SalaryTab({ schoolId, setError }) {
+function SalaryTab({ schoolId, setError, canEdit }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -783,9 +794,11 @@ function SalaryTab({ schoolId, setError }) {
             {[year - 1, year, year + 1].map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
-          <Plus size={12} /> Record Salary
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowForm(!showForm)} className="text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-lg px-3 py-1.5 flex items-center gap-1">
+            <Plus size={12} /> Record Salary
+          </button>
+        )}
       </div>
 
       {summary && (
