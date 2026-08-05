@@ -2422,6 +2422,7 @@ class NotifyAbsenteesResult(BaseModel):
 class FeeConcessionCreate(BaseModel):
     school_id: int
     name: str
+    category: str = "concession"  # "concession" or "scholarship"
     concession_type: str  # "sibling", "rte", "category", "custom"
     discount_type: str  # "percentage" or "flat"
     discount_value: int
@@ -2431,6 +2432,7 @@ class FeeConcessionOut(BaseModel):
     id: int
     school_id: int
     name: str
+    category: str
     concession_type: str
     discount_type: str
     discount_value: int
@@ -3295,3 +3297,124 @@ class FinanceDashboardOut(BaseModel):
     highest_dues_by_class: list[ClassDuesItem]
     upcoming_due_dates: list[UpcomingDueItem]
     recent_activity: list[RecentActivityItem]
+
+
+# =========================================================================
+# Finance Phase 3 — real workflow screens: Fee Categories management,
+# Student Billing's 3 modes, search-first Collections, and Refunds.
+# =========================================================================
+
+class FeeCategoryCreate(BaseModel):
+    school_id: int
+    name: str
+
+
+class FeeCategoryUpdate(BaseModel):
+    name: str | None = None
+    is_active: bool | None = None
+
+
+class FeeCategoryOut(BaseModel):
+    id: int
+    school_id: int
+    name: str
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class DuplicateStructuresRequest(BaseModel):
+    source_academic_year_id: int
+    target_academic_year_id: int
+    percentage_increase: float = 0  # e.g. 10 for a flat +10% bump on every duplicated structure
+
+
+class DuplicateStructuresResponse(BaseModel):
+    created_count: int
+    skipped_count: int  # a structure for that class+category already exists in the target year
+
+
+class ClassBatchInvoiceRequest(BaseModel):
+    school_id: int
+    school_class_id: int
+    fee_structure_id: int
+    billing_period: str
+    due_date: date
+    concession_id: int | None = None
+
+
+class ClassBatchInvoiceResponse(BaseModel):
+    created_count: int
+    skipped_count: int
+    student_names_created: list[str]
+    student_names_skipped: list[str]
+
+
+class AcademicYearTemplateRequest(BaseModel):
+    school_id: int
+    school_class_id: int
+    fee_structure_id: int
+    academic_year_id: int
+    first_due_date: date
+
+
+class AcademicYearTemplateResponse(BaseModel):
+    created_count: int
+    skipped_count: int
+    periods_generated: list[str]
+
+
+class StudentSearchResult(BaseModel):
+    id: int
+    full_name: str
+    admission_number: str
+    class_name: str | None
+    section_name: str | None
+    total_outstanding: int
+
+
+class EligiblePaymentOut(BaseModel):
+    payment_id: int
+    invoice_id: int
+    receipt_number: str | None
+    amount: int
+    payment_date: date
+    payment_method: str
+    fee_description: str
+    remaining_refundable: int
+
+
+class RefundRequestCreate(BaseModel):
+    payment_id: int
+    amount: int
+    reason: str
+
+
+class RefundDecisionRequest(BaseModel):
+    decision: str  # approved, rejected
+    review_notes: str | None = None
+
+
+class RefundProcessRequest(BaseModel):
+    refund_method: str  # cash, upi, bank_transfer, cheque
+
+
+class RefundOut(BaseModel):
+    id: int
+    school_id: int
+    payment_id: int
+    student_id: int
+    student_name: str
+    amount: int
+    reason: str
+    status: str
+    requested_by_name: str
+    requested_at: datetime
+    reviewed_by_name: str | None
+    reviewed_at: datetime | None
+    review_notes: str | None
+    processed_by_name: str | None
+    processed_at: datetime | None
+    refund_method: str | None
+    receipt_number: str | None
