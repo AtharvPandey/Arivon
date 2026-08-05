@@ -356,7 +356,7 @@ def generate_receipt(payment_id: int, db: Session = Depends(get_db), current_use
     structure = db.query(models.FeeStructure).filter(models.FeeStructure.id == invoice.fee_structure_id).first()
     school = db.query(models.School).filter(models.School.id == student.school_id).first()
 
-    stored_filename = generate_fee_receipt_pdf(student, school, payment, invoice, structure)
+    stored_filename = generate_fee_receipt_pdf(student, school, payment, invoice, _category_name(db, structure))
 
     document = models.Document(
         school_id=student.school_id, entity_type="student", entity_id=student.id,
