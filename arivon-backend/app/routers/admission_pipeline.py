@@ -19,6 +19,7 @@ from app.database import get_db
 from app import models, schemas
 from app.core.deps import get_current_user, require_roles
 from app.services import admissions_engine as engine
+from app.routers.fees import _category_name
 
 router = APIRouter(prefix="/admission-pipeline", tags=["admission-pipeline"])
 
@@ -472,6 +473,34 @@ def make_decision(application_id: int, payload: schemas.DecisionRequest, db: Ses
 
 
 @router.get(
+    "/applications/{application_id}/eligible-fee-structures", response_model=list[schemas.EligibleFeeStructureOut],
+    dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
+)
+def list_eligible_fee_structures(application_id: int, db: Session = Depends(get_db)):
+    """Only ONE-TIME structures (Registration Fee, Admission Fee) -
+    monthly/quarterly tuition gets set up separately through Student
+    Billing once the student is actually enrolled, not bundled into
+    this one-off admission charge."""
+    application = _get_application_or_404(db, application_id)
+    query = db.query(models.FeeStructure).filter(
+        models.FeeStructure.school_id == application.school_id,
+        models.FeeStructure.frequency == "one_time",
+    )
+    if application.applying_for_class_id:
+        query = query.filter(
+            (models.FeeStructure.school_class_id == application.applying_for_class_id) |
+            (models.FeeStructure.school_class_id.is_(None))
+        )
+    else:
+        query = query.filter(models.FeeStructure.school_class_id.is_(None))
+    structures = query.all()
+    return [
+        schemas.EligibleFeeStructureOut(id=s.id, fee_category_name=_category_name(db, s), amount=s.amount, frequency=s.frequency)
+        for s in structures
+    ]
+
+
+@router.get(
     "/applications/{application_id}/fee-invoices", response_model=list[schemas.PipelineFeeInvoiceOut],
     dependencies=[Depends(require_roles(*PIPELINE_VIEW_ROLES))],
 )
@@ -486,8 +515,27 @@ def list_fee_invoices(application_id: int, db: Session = Depends(get_db)):
     dependencies=[Depends(require_roles(*PIPELINE_WRITE_ROLES))],
 )
 def generate_fee_invoices(application_id: int, payload: schemas.GenerateFeeInvoicesRequest, db: Session = Depends(get_db)):
+    """Resolves each selected Fee Structure into the description/amount
+    the engine needs - Admissions picks from Finance-owned structures,
+    it never types a description or amount itself. One shared due_date
+    across the whole batch (a Registration Fee and Admission Fee
+    charged together at confirmation naturally share one due date)."""
     application = _get_application_or_404(db, application_id)
-    invoices = engine.generate_admission_fee_invoices(db, application, fee_items=[item.model_dump() for item in payload.items])
+    if not payload.fee_structure_ids:
+        raise HTTPException(status_code=400, detail="Select at least one fee structure.")
+
+    fee_items = []
+    for structure_id in payload.fee_structure_ids:
+        structure = db.query(models.FeeStructure).filter(
+            models.FeeStructure.id == structure_id, models.FeeStructure.school_id == application.school_id,
+        ).first()
+        if not structure:
+            raise HTTPException(status_code=404, detail=f"Fee structure {structure_id} not found for this school.")
+        fee_items.append({
+            "description": _category_name(db, structure), "amount": structure.amount, "due_date": payload.due_date,
+        })
+
+    invoices = engine.generate_admission_fee_invoices(db, application, fee_items=fee_items)
     return invoices
 
 

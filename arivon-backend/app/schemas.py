@@ -3093,14 +3093,22 @@ class DecisionRequest(BaseModel):
     offer_valid_until: date | None = None
 
 
-class FeeInvoiceItem(BaseModel):
-    description: str
+class EligibleFeeStructureOut(BaseModel):
+    """A Finance-owned, one-time fee structure the applicant's class is
+    eligible for (e.g. Registration Fee, Admission Fee) - Admissions
+    picks from this list, it never types an amount itself."""
+    id: int
+    fee_category_name: str
     amount: int
-    due_date: date
+    frequency: str
+
+    class Config:
+        from_attributes = True
 
 
 class GenerateFeeInvoicesRequest(BaseModel):
-    items: list[FeeInvoiceItem]
+    fee_structure_ids: list[int]
+    due_date: date
 
 
 class PipelineFeeInvoiceOut(BaseModel):

@@ -79,7 +79,9 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
   const [showSkipInterview, setShowSkipInterview] = useState(false);
   const [skipInterviewReason, setSkipInterviewReason] = useState("");
 
-  const [feeItems, setFeeItems] = useState([{ description: "Registration Fee", amount: "", due_date: "" }]);
+  const [feeStructures, setFeeStructures] = useState([]);
+  const [selectedStructureIds, setSelectedStructureIds] = useState([]);
+  const [feeDueDate, setFeeDueDate] = useState("");
   const [confirmSectionId, setConfirmSectionId] = useState("");
 
   const canDecide = DECISION_ROLES.includes(user?.role_name);
@@ -93,6 +95,9 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
     }
     if (["fee_pending", "admission_confirmed"].includes(application.stage)) {
       apiRequest(`/admission-pipeline/applications/${application.id}/fee-invoices`).then(setInvoices).catch(() => {});
+    }
+    if (application.stage === "fee_pending") {
+      apiRequest(`/admission-pipeline/applications/${application.id}/eligible-fee-structures`).then(setFeeStructures).catch(() => {});
     }
     if (application.applying_for_class_id) {
       apiRequest(`/classes/${application.applying_for_class_id}/sections`).then(setSections).catch(() => {});
@@ -201,13 +206,19 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
 
   async function handleGenerateFees(e) {
     e.preventDefault();
+    if (selectedStructureIds.length === 0) { setError("Select at least one fee structure."); return; }
     setSaving(true); setError("");
     try {
-      const items = feeItems.filter((f) => f.description && f.amount).map((f) => ({ description: f.description, amount: Number(f.amount), due_date: f.due_date }));
-      await apiRequest(`/admission-pipeline/applications/${application.id}/fee-invoices`, { method: "POST", body: { items } });
+      await apiRequest(`/admission-pipeline/applications/${application.id}/fee-invoices`, {
+        method: "POST", body: { fee_structure_ids: selectedStructureIds.map(Number), due_date: feeDueDate },
+      });
       const updated = await apiRequest(`/admission-pipeline/applications/${application.id}/fee-invoices`);
       setInvoices(updated);
     } catch (err) { setError(err.message); } finally { setSaving(false); }
+  }
+
+  function toggleStructure(id) {
+    setSelectedStructureIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   }
 
   async function handleConfirm() {
@@ -428,15 +439,30 @@ function DetailDrawer({ application, user, classes, staffList, onClose, onUpdate
               )}
               {invoices.length === 0 && (
                 <form onSubmit={handleGenerateFees} className="space-y-2 mb-3">
-                  {feeItems.map((f, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input value={f.description} onChange={(e) => setFeeItems(feeItems.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Fee description" className="flex-1 rounded-lg border border-slate-200 px-2 py-2 text-xs" />
-                      <input value={f.amount} onChange={(e) => setFeeItems(feeItems.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} placeholder="Amount" type="number" className="w-20 rounded-lg border border-slate-200 px-2 py-2 text-xs" />
-                      <input value={f.due_date} onChange={(e) => setFeeItems(feeItems.map((x, j) => j === i ? { ...x, due_date: e.target.value } : x))} type="date" className="w-32 rounded-lg border border-slate-200 px-2 py-2 text-xs" />
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => setFeeItems([...feeItems, { description: "", amount: "", due_date: "" }])} className="text-xs text-brand-700 hover:underline">+ Add fee item</button>
-                  <button type="submit" disabled={saving} className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-xs font-medium rounded-lg py-2">Generate Invoices</button>
+                  {feeStructures.length === 0 ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-3">
+                      No one-time fee structures (Registration Fee, Admission Fee, etc.) have been set up for this class yet —
+                      ask Finance to add one under Fee Structures before this application can be billed.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="space-y-1.5">
+                        {feeStructures.map((s) => (
+                          <label key={s.id} className="flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 cursor-pointer hover:border-slate-300">
+                            <span className="flex items-center gap-2 text-xs text-slate-700">
+                              <input type="checkbox" checked={selectedStructureIds.includes(s.id)} onChange={() => toggleStructure(s.id)} />
+                              {s.fee_category_name}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-800">₹{s.amount.toLocaleString()}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <input type="date" value={feeDueDate} onChange={(e) => setFeeDueDate(e.target.value)} required placeholder="Due date" className="w-full rounded-lg border border-slate-200 px-2 py-2 text-xs" />
+                      <button type="submit" disabled={saving || selectedStructureIds.length === 0} className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white text-xs font-medium rounded-lg py-2">
+                        Generate Invoices
+                      </button>
+                    </>
+                  )}
                 </form>
               )}
               {invoices.length > 0 && !allInvoicesPaid && (
